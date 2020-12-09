@@ -5,15 +5,23 @@ COUNTRIES=`cat countries.txt`
 
 mkdir -p tif
 
-# First generate all the tile
+# Download first...
+
+for COUNTRY in $COUNTRIES
+do
+    if [ ! -f tif/${COUNTRY}_ppp_${YEAR}.tif ]; then
+        echo "Downloading ${COUNTRY^^}"
+        wget -q ftp://ftp.worldpop.org/GIS/Population/Global_2000_2020/${YEAR}/${COUNTRY^^}/${COUNTRY}_ppp_${YEAR}.tif -P tif
+    fi
+done
+
+
+
+# Generate the tiles per country
 
 for COUNTRY in $COUNTRIES
 do
     echo ${COUNTRY^^}
-    if [ ! -f tif/${COUNTRY}_ppp_${YEAR}.tif ]; then
-        echo "...Downloading"
-        wget -q ftp://ftp.worldpop.org/GIS/Population/Global_2000_2020/${YEAR}/${COUNTRY^^}/${COUNTRY}_ppp_${YEAR}.tif -P tif
-    fi
     if [ ! -f tif/${COUNTRY}_ppp_${YEAR}_mercator.tif ]; then
         echo "...Reprojecting"
         gdalwarp -t_srs EPSG:3857 tif/${COUNTRY}_ppp_${YEAR}.tif tif/${COUNTRY}_ppp_${YEAR}_mercator.tif
