@@ -1,7 +1,7 @@
 #!/bin/bash
 
 YEAR=2020
-COUNTRIES=`cat countries.txt`
+COUNTRIES="lby dza"
 
 mkdir -p tif
 
@@ -28,7 +28,7 @@ do
     fi
     if [ ! -f tif/${COUNTRY}_ppp_${YEAR}_colors.tif ]; then
         echo "...Colorizing"
-    	gdaldem color-relief tif/${COUNTRY}_ppp_${YEAR}_mercator.tif colors-100m.cpt tif/${COUNTRY}_ppp_${YEAR}_colors.tif
+    	gdaldem color-relief -alpha tif/${COUNTRY}_ppp_${YEAR}_mercator.tif colors-100m.cpt tif/${COUNTRY}_ppp_${YEAR}_colors.tif
     fi
     echo "...Generating tiles"
     gdal2tiles.py --profile=mercator -z 9 tif/${COUNTRY}_ppp_${YEAR}_colors.tif country/${COUNTRY}/${YEAR}
