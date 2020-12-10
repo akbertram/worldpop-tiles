@@ -12,5 +12,5 @@ fi
 
 gdaldem color-relief tif/ppp_${YEAR}_1km_Aggregated_mercator.tif colors.cpt tif/ppp_${YEAR}_1km_Aggregated_colors.tif
 
-gdal2tiles.py --profile=mercator -z 0-14 tif/ppp_${YEAR}_1km_Aggregated_colors.tif tiles/${YEAR}
+gdal2tiles.py --profile=mercator --resume --zoom=0-12 tif/ppp_${YEAR}_1km_Aggregated_colors.tif tiles/${YEAR}
 
