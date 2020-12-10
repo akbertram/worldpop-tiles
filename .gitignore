@@ -1,4 +1,7 @@
 tif
 tiles
 country
-
+build
+.gradle
+.idea
+merged
