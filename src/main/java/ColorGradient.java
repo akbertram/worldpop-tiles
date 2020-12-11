@@ -3,7 +3,9 @@ import java.util.Arrays;
 
 public class ColorGradient {
 
-  public static final int TRANSPARENT = new Color(255, 255, 255, 0).getRGB();
+  public static final Color TRANSPARENT_COLOR = new Color(255, 255, 255, 0);
+
+  public static final int TRANSPARENT = TRANSPARENT_COLOR.getRGB();
 
   private final int maxColor;
   private final int maxPop = 600;
