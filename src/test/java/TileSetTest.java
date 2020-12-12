@@ -1,5 +1,4 @@
 import org.geotools.geometry.DirectPosition2D;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.opengis.geometry.DirectPosition;
 import org.opengis.referencing.FactoryException;
@@ -32,8 +31,25 @@ class TileSetTest {
 
     System.out.println("max => " + meters);
 
-
 //    assertThat(meters.getX(), Matchers.closeTo(TileSet.PROJ_MAX, 1));
 //    assertThat(meters.getY(), Matchers.closeTo(TileSet.PROJ_MAX, 1));
+  }
+
+  @Test
+  public void testLatLng() throws FactoryException {
+
+    // Alexandria http://a.tile.stamen.com/toner/9/298/209.png
+
+    TileSet tileSet = new TileSet(9);
+
+    double x = tileSet.meterTileLeft(298);
+    double y = tileSet.meterTileTop(209);
+
+    double longitude = TileSet.x2lon(x);
+    double latitude = TileSet.y2lat(y);
+
+    System.out.println(longitude + ", " + latitude);
+
+
   }
 }
