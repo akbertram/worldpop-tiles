@@ -24,9 +24,6 @@ public class ColorGradient {
   }
 
   public int color(int pop) {
-    if(pop < 0) {
-      return TRANSPARENT;
-    }
     if(pop >= maxPop) {
       return maxColor;
     } else {
