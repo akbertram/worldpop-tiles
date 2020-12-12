@@ -1,73 +1,68 @@
-import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.awt.image.Raster;
-import java.util.Arrays;
+import java.io.IOException;
 
 public class TileBuffer  {
 
-  private final BufferedImage image;
-  private int[] countArray;
-  private int[] transparentArray;
-  private final int tileSizePixels;
-  private final ColorGradient gradient;
+  public static final ThreadLocal<TileBuffer> THREAD_LOCAL = new ThreadLocal<>();
 
-  public TileBuffer(TileSet tileSet, ColorGradient gradient) {
-    this.tileSizePixels = tileSet.getTileSizePixels();
-    this.gradient = gradient;
-    this.image = new BufferedImage(tileSizePixels, tileSizePixels, BufferedImage.TYPE_INT_ARGB);
-    this.countArray = new int[tileSizePixels * tileSizePixels];
-    int rgb = Color.RED.getRGB();
-    for (int i = 0; i < tileSizePixels; i++) {
-      image.setRGB(i, 100, rgb);
+  public final BufferedImage image;
+  public final int[] pixels;
+
+  private final int[] gridX;
+
+  private TileBuffer() {
+    this.image = new BufferedImage(TileSet.PIXELS_PER_TILE, TileSet.PIXELS_PER_TILE, BufferedImage.TYPE_INT_ARGB);
+    this.pixels = new int[TileSet.PIXELS_PER_TILE * TileSet.PIXELS_PER_TILE];
+    this.gridX = new int[TileSet.PIXELS_PER_TILE];
+  }
+
+  public static TileBuffer get() {
+    TileBuffer buffer = THREAD_LOCAL.get();
+    if(buffer == null) {
+      buffer = new TileBuffer();
+      THREAD_LOCAL.set(buffer);
     }
-    transparentArray = new int[tileSizePixels * tileSizePixels];
-    Arrays.fill(transparentArray, ColorGradient.TRANSPARENT);
+    return buffer;
   }
 
-  public BufferedImage getImage() {
-    return image;
-  }
+  public BufferedImage renderTile(Reprojection reprojection, SourceSubset source, ColorGradient gradient, int tileX, int tileY) throws IOException {
 
-  public boolean render(Raster raster, int tileX, int tileY) {
-    int[] buffer = this.countArray;
 
-    int tileStartX = (int)raster.getBounds().getX() + tileX * tileSizePixels;
-    int tileEndY = raster.getHeight() - (tileY * tileSizePixels);
-    int tileStartY = (int)raster.getBounds().getY() + tileEndY - tileSizePixels;
-
-    // Load the population counts into the buffer
-    raster.getPixels(
-      tileStartX,
-      tileStartY,
-      tileSizePixels,
-      tileSizePixels,
-      buffer);
-
-    // Recolor
+    int pixelIndex = 0;
     boolean empty = true;
-    int numPixels = buffer.length;
-    for (int i = 0; i < numPixels; i++) {
-      int pop = buffer[i];
-      if(pop < 0) {
-        buffer[i] = ColorGradient.TRANSPARENT;
-      } else {
-        buffer[i] = gradient.color(pop);
-        empty = false;
+
+    int startX = tileX * TileSet.PIXELS_PER_TILE;
+    int startY = tileY * TileSet.PIXELS_PER_TILE;
+
+    for (int y = 0; y < TileSet.PIXELS_PER_TILE; y++) {
+      int gridY = reprojection.gridY[startY + y];
+
+      for (int x = 0; x < TileSet.PIXELS_PER_TILE; x++) {
+        int gridX = reprojection.gridX[startX + x];
+        int pop = source.get(gridX, gridY);
+
+        if (pop < 0) {
+          pixels[pixelIndex] = ColorGradient.TRANSPARENT;
+        } else {
+          pixels[pixelIndex] = gradient.color(pop);
+          empty = false;
+        }
+        pixelIndex++;
       }
     }
 
     if(empty) {
-      return false;
+      return null;
+
+    } else {
+      image.setRGB(0, 0,
+        TileSet.PIXELS_PER_TILE,
+        TileSet.PIXELS_PER_TILE,
+        pixels,
+        0, /* offset in array */
+        TileSet.PIXELS_PER_TILE /* scan size */);
+
+      return image;
     }
-
-    image.setRGB(0, 0,
-      tileSizePixels,
-      tileSizePixels,
-      buffer,
-      0, /* offset in array */
-      tileSizePixels /* scan size */);
-
-    return true;
   }
-
 }

@@ -1,17 +1,7 @@
-import org.geotools.coverage.grid.GeneralGridEnvelope;
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.GridGeometry2D;
-import org.geotools.coverage.processing.Operations;
+import org.geotools.geometry.Envelope2D;
 import org.geotools.referencing.CRS;
-import org.geotools.referencing.operation.transform.AffineTransform2D;
-import org.opengis.coverage.grid.GridEnvelope;
-import org.opengis.coverage.grid.GridGeometry;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
-
-import javax.media.jai.Interpolation;
-import java.awt.*;
-import java.awt.geom.AffineTransform;
 
 public class TileSet {
 
@@ -21,47 +11,68 @@ public class TileSet {
   public static final double PROJ_MAX = + Math.PI * RADIUS;
 
   public static final double PROJ_SIZE = PROJ_MAX - PROJ_MIN;
-  public static final int tileSizePixels = 256;
+
+  public static final int PIXELS_PER_TILE = 256;
 
   public final double tileCount;
   public final int zoomLevel;
-  public final double tileSizeInMeters;
+  public final double metersPerTile;
   public final double pixelsPerMeter;
   public final int worldSizePixels;
+  public final CoordinateReferenceSystem sourceCRS;
   public final CoordinateReferenceSystem targetCRS;
-  public final AffineTransform2D pixelsToMeters2D;
+  public final double metersPerPixel;
 
   public TileSet(int zoomLevel) throws FactoryException {
+    this.sourceCRS = CRS.decode("EPSG:4326");
     this.targetCRS = CRS.decode("EPSG:3857");
 
     this.tileCount = Math.pow(2, zoomLevel);
     this.zoomLevel = zoomLevel;
-    this.tileSizeInMeters = PROJ_SIZE / tileCount;
-    this.worldSizePixels = (int) (tileCount * tileSizePixels);
+    this.metersPerTile = PROJ_SIZE / tileCount;
+    this.worldSizePixels = (int) (tileCount * PIXELS_PER_TILE);
     this.pixelsPerMeter = worldSizePixels / PROJ_SIZE;
-
-    AffineTransform pixelToMeter = new AffineTransform();
-    pixelToMeter.translate(-Math.PI * RADIUS, Math.PI * RADIUS);
-    pixelToMeter.scale(PROJ_SIZE / worldSizePixels, -PROJ_SIZE / worldSizePixels);
-
-    this.pixelsToMeters2D = new AffineTransform2D(pixelToMeter);
+    this.metersPerPixel = PROJ_SIZE / worldSizePixels;
   }
 
-  public int getTileSizePixels() {
-    return tileSizePixels;
+  public static double metersToLatitude(double aY) {
+    return Math.toDegrees(Math.atan(Math.exp(aY / RADIUS)) * 2 - Math.PI/2);
+  }
+  public static double metersToLongitude(double aX) {
+    return (aX / RADIUS) * 180.0 / Math.PI;
   }
 
-  public GridCoverage2D project(GridCoverage2D coverage, int tileX, int tileY, int size) {
+  /**
+   * The position, in meters, of the tile's left edge.
+   */
+  public double meterTileLeft(int tileX) {
+    return PROJ_MIN + (tileX * metersPerTile);
+  }
 
-    int tileStartX = tileX * tileSizePixels;
-    int tileEndY =  worldSizePixels - (tileY * tileSizePixels);
-    int tileStartY = tileEndY - (size * tileSizePixels);
+  public double meterTileRight(int tileX) {
+    return meterTileLeft(tileX) + metersPerTile;
+  }
 
-    GridEnvelope gridRange = new GeneralGridEnvelope(
-      new Rectangle(tileStartX, tileStartY, size * tileSizePixels, size * tileSizePixels));
+  /**
+   * The position, in meters, of the tile's top edge.
+   */
+  public double meterTileTop(int tileY) {
+    return PROJ_MAX - (tileY * metersPerTile);
+  }
 
-    GridGeometry geometry = new GridGeometry2D(gridRange, pixelsToMeters2D, targetCRS);
-    return (GridCoverage2D) Operations.DEFAULT.resample(coverage, null, geometry,
-      Interpolation.getInstance(Interpolation.INTERP_NEAREST));
+  /**
+   * The position, in meters, of the tile's top edge.
+   */
+  public double meterTileBottom(int tileY) {
+    return meterTileTop(tileY) - metersPerTile;
+  }
+
+  public Envelope2D getGeographicBounds(int tileX, int tileY, int tileCount) {
+    double left = metersToLongitude(meterTileLeft(tileX));
+    double right = metersToLongitude(meterTileRight(tileX + tileCount));
+    double top = metersToLatitude(meterTileTop(tileY));
+    double bottom = metersToLatitude(meterTileBottom(tileY + tileCount));
+
+    return new Envelope2D(sourceCRS, left, bottom, right - left, top - bottom);
   }
 }

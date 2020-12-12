@@ -1,4 +1,3 @@
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Progress {
@@ -15,7 +14,7 @@ public class Progress {
 
   public static void tileCompleted() {
     long count = COUNT.incrementAndGet();
-    if(count % 100L == 0) {
+    if(count % 1000L == 0) {
       double percentComplete = (double) count / (double) totalTiles * 100d;
       double elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000L;
       double tilesPerSecond = (double) count / (double)elapsedSeconds;

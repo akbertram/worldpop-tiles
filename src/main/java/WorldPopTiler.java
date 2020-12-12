@@ -16,7 +16,7 @@ public class WorldPopTiler {
   }
 
   private static void renderBaseTiles() throws IOException, FactoryException {
-    File file = new File("tif/ppp_2020_1km_Aggregated_mercator.tif");
+    File file = new File("tif/ppp_2020_1km_Aggregated.tif");
 
     AbstractGridFormat format = GridFormatFinder.findFormat( file );
     GridCoverage2DReader reader = format.getReader( file );
@@ -33,7 +33,8 @@ public class WorldPopTiler {
 
     ColorGradient gradient = new ColorGradient();
 
-    ForkJoinPool.commonPool().invoke(new TileRenderTask(tileSet, coverage, gradient, 0, 0, (int)tileSet.tileCount));
+    ForkJoinPool.commonPool().invoke(new TileRenderTask(tileSet, new SourceImage(coverage), gradient, 0, 0,
+      (int)tileSet.tileCount));
   }
 
 

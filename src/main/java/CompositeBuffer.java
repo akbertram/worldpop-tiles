@@ -30,10 +30,10 @@ public class CompositeBuffer {
   public void render(File[] files) {
     graphics.clearRect(0, 0, 256, 256);
 
-    render(0,   128, files[0]); // (0, 0)
-    render(0,     0, files[1]); // (0, 1)
-    render(128, 128, files[2]); // (1, 0)
-    render(128,   0, files[3]); // (1, 1)
+    render(0,     0, files[0]); // (0, 0)
+    render(0,   128, files[1]); // (0, 1)
+    render(128,   0, files[2]); // (1, 0)
+    render(128, 128, files[3]); // (1, 1)
   }
 
   private void render(int x, int y, File file) {

@@ -1,22 +1,22 @@
-import org.geotools.coverage.grid.GridCoverage2D;
+import org.opengis.referencing.operation.TransformException;
 
 import javax.imageio.ImageIO;
-import java.awt.image.Raster;
-import java.awt.image.RenderedImage;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
 
 public class TileRenderTask extends RecursiveAction {
+
   private final TileSet tileSet;
-  private final GridCoverage2D coverage;
+  private final SourceImage coverage;
   private final ColorGradient gradient;
   private final int tileStartX;
   private final int tileStartY;
   private final int tileSpan;
 
-  public TileRenderTask(TileSet tileSet, GridCoverage2D coverage, ColorGradient gradient,
+  public TileRenderTask(TileSet tileSet, SourceImage coverage, ColorGradient gradient,
                         int tileStartX, int tileStartY, int tileSpan) {
     this.tileSet = tileSet;
     this.coverage = coverage;
@@ -28,9 +28,9 @@ public class TileRenderTask extends RecursiveAction {
 
   @Override
   protected void compute() {
-    if(tileSpan <= 8) {
+    if(tileSpan <= Reprojection.BATCH_SIZE) {
       try {
-        renderTiles();
+        renderBatch();
       } catch (Throwable e) {
         e.printStackTrace();
       }
@@ -44,34 +44,30 @@ public class TileRenderTask extends RecursiveAction {
     }
   }
 
-  private void renderTiles() {
+  private void renderBatch() throws TransformException, IOException {
 
-    GridCoverage2D projected = tileSet.project(coverage, tileStartX, tileStartY, tileSpan);
+    Reprojection reprojection = Reprojection.get();
 
-    RenderedImage image = projected.getRenderableImage(0, 1).createDefaultRendering();
-    Raster raster = image.getData();
+    // First we need to assemble the source image in a rectangular grid
+    SourceSubset source = coverage.extractImage(tileSet.getGeographicBounds(tileStartX, tileStartY, tileSpan));
+    if(source == null) {
+      return;
+    }
 
-    TileBuffer buffer = new TileBuffer(tileSet, gradient);
+    reprojection.precomputeGridIndexes(tileSet, tileStartX, tileStartY, source);
 
-    for (int tileX = tileStartX; tileX < tileStartX + tileSpan; tileX++) {
-      File tileDir = new File("build/test/" + tileSet.zoomLevel + "/" + tileX);
+    TileBuffer tileBuffer = TileBuffer.get();
+
+    for (int tileX = 0; tileX < tileSpan; tileX++) {
+      File tileDir = new File("build/test/" + tileSet.zoomLevel + "/" + (tileStartX + tileX));
       tileDir.mkdirs();
 
-      for (int tileY = tileStartY; tileY < tileStartY + tileSpan; tileY++) {
+      for (int tileY = 0; tileY < tileSpan; tileY++) {
 
-        if (buffer.render(raster, tileX - tileStartX, tileY - tileStartY)) {
+        BufferedImage image = tileBuffer.renderTile(reprojection, source, gradient, tileX, tileY);
 
-          File tileFile = new File(tileDir, tileY + ".png");
-          boolean written = false;
-          try {
-            written = ImageIO.write(buffer.getImage(), "png", tileFile);
-          } catch (IOException e) {
-            System.err.println("Exception writing tile " + tileX + "x" + tileY);
-            e.printStackTrace();
-          }
-          if (!written) {
-            throw new RuntimeException("not written");
-          }
+        if(image != null) {
+          ImageIO.write(image, "png", new File(tileDir, (tileStartY + tileY) + ".png"));
         }
 
         Progress.tileCompleted();
