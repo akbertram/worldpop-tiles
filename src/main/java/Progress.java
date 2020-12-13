@@ -2,6 +2,16 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class Progress {
 
+  private static final int REPORT_INTERVAL_MILLIS;
+
+  static {
+    if(System.getenv("BUILD_NUMBER") != null) {
+      REPORT_INTERVAL_MILLIS = 60_000;
+    } else {
+      REPORT_INTERVAL_MILLIS = 5_000;
+    }
+  }
+
   public static final AtomicLong COUNT = new AtomicLong(0);
   public static final AtomicLong RENDERED_COUNT = new AtomicLong(0);
 
@@ -15,7 +25,7 @@ public class Progress {
     Thread reporter = new Thread(() -> {
       while(true) {
         try {
-          Thread.sleep(5000);
+          Thread.sleep(REPORT_INTERVAL_MILLIS);
         } catch (InterruptedException e) {
           return;
         }

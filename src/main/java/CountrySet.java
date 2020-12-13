@@ -24,7 +24,7 @@ public class CountrySet {
     if(!Strings.isNullOrEmpty(System.getenv("SOURCE_DIR"))) {
       baseDir = new File(System.getenv("SOURCE_DIR"));
     } else {
-      baseDir = new File("country_tif");
+      baseDir = new File("tif_country");
     }
 
     quadtree = new Quadtree();
@@ -68,8 +68,9 @@ public class CountrySet {
   }
 
   public List<Country> findOverlappingCountries(Envelope2D bounds) {
+    List<Country> matchingQuadtree = quadtree.query(toJtsEnvelope(bounds));
     List<Country> matching = new ArrayList<>();
-    for (Country country : sources) {
+    for (Country country : matchingQuadtree) {
       if(country.getGeographicBounds().getBounds2D().intersects(bounds.getBounds2D())) {
         matching.add(country);
       }
