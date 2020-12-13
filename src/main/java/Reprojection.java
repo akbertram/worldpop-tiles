@@ -26,7 +26,7 @@ public class Reprojection {
    *
    * This essential reprojects and resamples the image with the nearest-neighbor algorithm.
    */
-  public void precomputeGridIndexes(TileSet tileSet, int tileStartX, int tileStartY, SourceSubset source) {
+  public void precomputeGridIndexes(TileSet tileSet, int tileStartX, int tileStartY, CountrySubset source) {
 
     double meterX = tileSet.meterTileLeft(tileStartX);
     for (int i = 0; i < gridX.length; i++) {

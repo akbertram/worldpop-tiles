@@ -7,7 +7,7 @@ import java.awt.*;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 
-public class SourceImage {
+public class Country {
 
   private static final ThreadLocal<int[]> THREAD_LOCAL_BUFFER = new ThreadLocal<>();
 
@@ -15,7 +15,7 @@ public class SourceImage {
   private final RenderedImage image;
   private final GridEnvelope2D gridRange;
 
-  public SourceImage(GridCoverage2D coverage) {
+  public Country(GridCoverage2D coverage) {
     this.coverage = coverage;
     this.image = coverage.getRenderableImage(0, 1).createDefaultRendering();
     this.gridRange = coverage.getGridGeometry().getGridRange2D();
@@ -25,7 +25,7 @@ public class SourceImage {
     return coverage.getEnvelope2D();
   }
 
-  public SourceSubset extractImage(Envelope2D bounds) throws TransformException {
+  public CountrySubset extractImage(Envelope2D bounds) throws TransformException {
     GridEnvelope2D gridBounds = coverage.getGridGeometry().worldToGrid(bounds);
 
     int left = gridBounds.x;
@@ -72,7 +72,7 @@ public class SourceImage {
 
     int[] pixels = raster.getPixels(left, top, width, height, buffer);
 
-    return new SourceSubset(coverage, left, top, width, height, pixels);
+    return new CountrySubset(coverage, left, top, width, height, pixels);
   }
 
 }

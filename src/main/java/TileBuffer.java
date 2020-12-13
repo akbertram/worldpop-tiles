@@ -10,8 +10,6 @@ public class TileBuffer  {
   public final BufferedImage image;
   public final int[][] pixelBuffers;
 
-  private final int[] gridX;
-
   private final BitSet nonEmpty = new BitSet();
 
   private TileBuffer() {
@@ -20,7 +18,6 @@ public class TileBuffer  {
     for (int i = 0; i < pixelBuffers.length; i++) {
       pixelBuffers[i] = new int[TileSet.PIXELS_PER_TILE * TileSet.PIXELS_PER_TILE];
     }
-    this.gridX = new int[TileSet.PIXELS_PER_TILE];
   }
 
   public static TileBuffer get() {
@@ -39,7 +36,7 @@ public class TileBuffer  {
     }
   }
 
-  public void renderTile(Reprojection reprojection, SourceSubset source, ColorGradient gradient, int tileX, int tileY) throws IOException {
+  public void renderTile(Reprojection reprojection, CountrySubset source, ColorGradient gradient, int tileX, int tileY) throws IOException {
 
     int pixelIndex = 0;
     boolean empty = true;
@@ -69,10 +66,6 @@ public class TileBuffer  {
     }
   }
 
-  public boolean isEmpty() {
-    return nonEmpty.isEmpty();
-  }
-
   private int[] buffer(int tileX, int tileY) {
     return pixelBuffers[tileIndex(tileX, tileY)];
   }
@@ -99,7 +92,4 @@ public class TileBuffer  {
     }
   }
 
-  public int getNonEmptyCount() {
-    return nonEmpty.cardinality();
-  }
 }

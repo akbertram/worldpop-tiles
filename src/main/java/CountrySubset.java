@@ -1,7 +1,11 @@
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.opengis.coverage.grid.GridEnvelope;
 
-public class SourceSubset {
+/**
+ * A rectangular subset of a Country's population count raster.
+ *
+ */
+public class CountrySubset {
 
   private final double pixelsPerDegreeLongitude;
   private final double pixelsPerDegreeLatitude;
@@ -13,7 +17,7 @@ public class SourceSubset {
   private final int height;
   private final int[] pixels;
 
-  public SourceSubset(GridCoverage2D coverage, int left, int top, int width, int height, int[] pixels) {
+  public CountrySubset(GridCoverage2D coverage, int left, int top, int width, int height, int[] pixels) {
     this.left = left;
     this.top = top;
     this.width = width;

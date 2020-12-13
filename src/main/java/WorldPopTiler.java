@@ -1,21 +1,21 @@
-import org.opengis.referencing.FactoryException;
-
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.ForkJoinPool;
 
 public class WorldPopTiler {
 
   public static void main(String[] args) throws Exception {
 
-    int baseZoomLevel = 11;
-    renderBaseTiles(baseZoomLevel);
-    downsample(baseZoomLevel);
+    CountrySet countrySet = new CountrySet();
+    int baseZoomLevel = 10;
+
+    try(TileStore store = new MbTiles(countrySet, baseZoomLevel)) {
+      renderBaseTiles(countrySet, store, baseZoomLevel);
+      downsample(store, baseZoomLevel);
+    }
   }
 
-  private static void renderBaseTiles(int zoomLevel) throws IOException, FactoryException {
+  private static void renderBaseTiles(CountrySet countrySet, TileStore store, int zoomLevel) throws Exception {
 
-    Countries countries = new Countries(new File("tif_country"));
 
     TileSet tileSet = new TileSet(zoomLevel);
 
@@ -25,16 +25,17 @@ public class WorldPopTiler {
 
     ColorGradient gradient = new ColorGradient(100);
 
-    ForkJoinPool.commonPool().invoke(new TileRenderTask(tileSet, countries, gradient, 0, 0,
-      (int)tileSet.tileCount));
+    ForkJoinPool.commonPool().invoke(new TileRenderTask(tileSet, countrySet, gradient, store, 0, 0,
+      (int) tileSet.tileCount));
 
     Progress.tilesDone();
   }
 
-  private static void downsample(int baseZoomLevel) {
+  private static void downsample(TileStore store, int baseZoomLevel) throws Exception {
+
     for (int zoom = baseZoomLevel - 1; zoom >= 0; zoom--) {
       System.out.println("Downsampling zoom level " + zoom + "...");
-      ForkJoinPool.commonPool().invoke(new Downsampler(zoom, 0, 0, (int)Math.pow(2, zoom)));
+      ForkJoinPool.commonPool().invoke(new DownsampleTask(store, zoom, 0, 0, (int)Math.pow(2, zoom)));
     }
   }
 

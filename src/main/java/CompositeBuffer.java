@@ -1,8 +1,5 @@
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 
 public class CompositeBuffer {
 
@@ -27,29 +24,20 @@ public class CompositeBuffer {
     graphics.clearRect(0, 0, 256, 256);
   }
 
-  public void render(File[] files) {
+  public BufferedImage render(BufferedImage[] images) {
     graphics.clearRect(0, 0, 256, 256);
 
-    render(0,     0, files[0]); // (0, 0)
-    render(0,   128, files[1]); // (0, 1)
-    render(128,   0, files[2]); // (1, 0)
-    render(128, 128, files[3]); // (1, 1)
+    render(0,     0, images[0]); // (0, 0)
+    render(0,   128, images[1]); // (0, 1)
+    render(128,   0, images[2]); // (1, 0)
+    render(128, 128, images[3]); // (1, 1)
+
+    return image;
   }
 
-  private void render(int x, int y, File file) {
-    if(file != null) {
-      BufferedImage image;
-      try {
-        image = ImageIO.read(file);
-      } catch (IOException e) {
-        e.printStackTrace();
-        return;
-      }
+  private void render(int x, int y, BufferedImage image) {
+    if(image != null) {
       graphics.drawImage(image, x, y, 128, 128, null);
     }
-  }
-
-  public BufferedImage getImage() {
-    return image;
   }
 }
