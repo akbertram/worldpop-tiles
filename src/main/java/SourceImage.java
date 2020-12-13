@@ -9,7 +9,7 @@ import java.awt.image.RenderedImage;
 
 public class SourceImage {
 
-  private static ThreadLocal<int[]> THREAD_LOCAL_BUFFER = new ThreadLocal<>();
+  private static final ThreadLocal<int[]> THREAD_LOCAL_BUFFER = new ThreadLocal<>();
 
   private final GridCoverage2D coverage;
   private final RenderedImage image;
@@ -19,7 +19,10 @@ public class SourceImage {
     this.coverage = coverage;
     this.image = coverage.getRenderableImage(0, 1).createDefaultRendering();
     this.gridRange = coverage.getGridGeometry().getGridRange2D();
+  }
 
+  public Envelope2D getGeographicBounds() {
+    return coverage.getEnvelope2D();
   }
 
   public SourceSubset extractImage(Envelope2D bounds) throws TransformException {
@@ -69,7 +72,7 @@ public class SourceImage {
 
     int[] pixels = raster.getPixels(left, top, width, height, buffer);
 
-    return new SourceSubset(coverage, left, top, width, pixels);
+    return new SourceSubset(coverage, left, top, width, height, pixels);
   }
 
 }

@@ -1,11 +1,6 @@
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.opengis.coverage.grid.GridEnvelope;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-
 public class SourceSubset {
 
   private final double pixelsPerDegreeLongitude;
@@ -14,13 +9,15 @@ public class SourceSubset {
   private final double longitudeWest;
   private final int left;
   private final int top;
-  private final int scanLine;
+  private final int width;
+  private final int height;
   private final int[] pixels;
 
-  public SourceSubset(GridCoverage2D coverage, int left, int top, int scanLine, int[] pixels) {
+  public SourceSubset(GridCoverage2D coverage, int left, int top, int width, int height, int[] pixels) {
     this.left = left;
     this.top = top;
-    this.scanLine = scanLine;
+    this.width = width;
+    this.height = height;
     this.pixels = pixels;
     GridEnvelope gridRange = coverage.getGridGeometry().getGridRange();
     pixelsPerDegreeLongitude = gridRange.getSpan(0) / coverage.getEnvelope2D().getWidth();
@@ -30,10 +27,11 @@ public class SourceSubset {
   }
 
   public int get(int x, int y) {
-    try {
-      return pixels[(y * scanLine) + x];
-    } catch (ArrayIndexOutOfBoundsException e) {
+    if(x < 0 || y < 0 || x >= width || y >= height) {
       return -1;
+    } else {
+      float pop = pixels[(y * width) + x];
+      return (int)pop;
     }
   }
 

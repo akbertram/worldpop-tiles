@@ -1,7 +1,3 @@
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.io.AbstractGridFormat;
-import org.geotools.coverage.grid.io.GridCoverage2DReader;
-import org.geotools.coverage.grid.io.GridFormatFinder;
 import org.opengis.referencing.FactoryException;
 
 import java.io.File;
@@ -11,35 +7,33 @@ import java.util.concurrent.ForkJoinPool;
 public class WorldPopTiler {
 
   public static void main(String[] args) throws Exception {
-    renderBaseTiles();
-    downsample();
+
+    int baseZoomLevel = 11;
+    renderBaseTiles(baseZoomLevel);
+    downsample(baseZoomLevel);
   }
 
-  private static void renderBaseTiles() throws IOException, FactoryException {
-    File file = new File("tif/ppp_2020_1km_Aggregated.tif");
+  private static void renderBaseTiles(int zoomLevel) throws IOException, FactoryException {
 
-    AbstractGridFormat format = GridFormatFinder.findFormat( file );
-    GridCoverage2DReader reader = format.getReader( file );
+    Countries countries = new Countries(new File("tif_country"));
 
-    String[] coverageNames = reader.getGridCoverageNames();
-
-    TileSet tileSet = new TileSet(9);
+    TileSet tileSet = new TileSet(zoomLevel);
 
     Progress.starting(tileSet);
 
-    GridCoverage2D coverage = reader.read(coverageNames[0], null);
-
     System.out.println("Zoom level " + tileSet.zoomLevel);
 
-    ColorGradient gradient = new ColorGradient();
+    ColorGradient gradient = new ColorGradient(100);
 
-    ForkJoinPool.commonPool().invoke(new TileRenderTask(tileSet, new SourceImage(coverage), gradient, 0, 0,
+    ForkJoinPool.commonPool().invoke(new TileRenderTask(tileSet, countries, gradient, 0, 0,
       (int)tileSet.tileCount));
+
+    Progress.tilesDone();
   }
 
-
-  private static void downsample() {
-    for (int zoom = 8; zoom >= 0; zoom--) {
+  private static void downsample(int baseZoomLevel) {
+    for (int zoom = baseZoomLevel - 1; zoom >= 0; zoom--) {
+      System.out.println("Downsampling zoom level " + zoom + "...");
       ForkJoinPool.commonPool().invoke(new Downsampler(zoom, 0, 0, (int)Math.pow(2, zoom)));
     }
   }
