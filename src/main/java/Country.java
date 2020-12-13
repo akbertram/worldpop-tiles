@@ -6,16 +6,19 @@ import org.opengis.referencing.operation.TransformException;
 import java.awt.*;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
+import java.io.File;
 
 public class Country {
 
   private static final ThreadLocal<int[]> THREAD_LOCAL_BUFFER = new ThreadLocal<>();
 
+  private final File file;
   private final GridCoverage2D coverage;
   private final RenderedImage image;
   private final GridEnvelope2D gridRange;
 
-  public Country(GridCoverage2D coverage) {
+  public Country(File file, GridCoverage2D coverage) {
+    this.file = file;
     this.coverage = coverage;
     this.image = coverage.getRenderableImage(0, 1).createDefaultRendering();
     this.gridRange = coverage.getGridGeometry().getGridRange2D();
@@ -61,7 +64,14 @@ public class Country {
     }
 
     // Iterate over the tiles that overlap with this range
-    Raster raster = image.getData(new Rectangle(left, top, width, height));
+    Raster raster;
+    try {
+      raster = image.getData(new Rectangle(left, top, width, height));
+    } catch (Exception e) {
+      System.out.println("Exception reading from " + file.getName());
+      e.printStackTrace();
+      return null;
+    }
 
     // Try to reuse the buffer if big enough
     int[] buffer = THREAD_LOCAL_BUFFER.get();

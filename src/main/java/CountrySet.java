@@ -30,16 +30,18 @@ public class CountrySet {
     quadtree = new Quadtree();
 
     for (File file : baseDir.listFiles()) {
-      AbstractGridFormat format = GridFormatFinder.findFormat( file );
-      GridCoverage2DReader reader = format.getReader( file );
+      if(file.getName().endsWith(".tif")) {
+        AbstractGridFormat format = GridFormatFinder.findFormat(file);
+        GridCoverage2DReader reader = format.getReader(file);
 
-      String[] coverageNames = reader.getGridCoverageNames();
+        String[] coverageNames = reader.getGridCoverageNames();
 
-      GridCoverage2D coverage = reader.read(coverageNames[0], null);
+        GridCoverage2D coverage = reader.read(coverageNames[0], null);
 
-      Country source = new Country(coverage);
-      quadtree.insert(toJtsEnvelope(coverage.getEnvelope2D()), source);
-      sources.add(source);
+        Country source = new Country(file, coverage);
+        quadtree.insert(toJtsEnvelope(coverage.getEnvelope2D()), source);
+        sources.add(source);
+      }
     }
   }
 

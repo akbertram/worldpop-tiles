@@ -33,7 +33,7 @@ public class MbTiles implements TileStore {
 
   public MbTiles(CountrySet countrySet, int baseZoomLevel) throws ClassNotFoundException, SQLException {
 
-    File databaseFile = new File("bgd.mbtiles");
+    File databaseFile = new File("worldpop.mbtiles");
 
     Class.forName("org.sqlite.JDBC");
 
