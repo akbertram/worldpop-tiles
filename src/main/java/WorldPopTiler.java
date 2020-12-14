@@ -5,7 +5,7 @@ public class WorldPopTiler {
   public static void main(String[] args) throws Exception {
 
     CountrySet countrySet = new CountrySet();
-    int baseZoomLevel = 10;
+    int baseZoomLevel = 11;
 
     try(TileStore store = new MbTiles(countrySet, baseZoomLevel)) {
       renderBaseTiles(countrySet, store, baseZoomLevel);
