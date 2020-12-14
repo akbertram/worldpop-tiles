@@ -11,11 +11,14 @@ import java.io.File;
 public class Country {
 
   private static final ThreadLocal<int[]> THREAD_LOCAL_BUFFER = new ThreadLocal<>();
+  public static final int MAX_ERROR_COUNT = 3;
 
   private final File file;
   private final GridCoverage2D coverage;
   private final RenderedImage image;
   private final GridEnvelope2D gridRange;
+
+  private int errorCount = 0;
 
   public Country(File file, GridCoverage2D coverage) {
     this.file = file;
@@ -29,6 +32,11 @@ public class Country {
   }
 
   public CountrySubset extractImage(Envelope2D bounds) throws TransformException {
+
+    if(errorCount >= MAX_ERROR_COUNT) {
+      return null;
+    }
+
     GridEnvelope2D gridBounds = coverage.getGridGeometry().worldToGrid(bounds);
 
     int left = gridBounds.x;
@@ -70,6 +78,10 @@ public class Country {
     } catch (Exception e) {
       System.out.println("Exception reading from " + file.getName());
       e.printStackTrace();
+      errorCount++;
+      if(errorCount >= MAX_ERROR_COUNT) {
+        System.out.println("Too many errors reading from " + file.getName() + ", will not attempt further.");
+      }
       return null;
     }
 
