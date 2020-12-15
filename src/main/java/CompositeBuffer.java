@@ -25,6 +25,11 @@ public class CompositeBuffer {
   }
 
   public BufferedImage render(BufferedImage[] images) {
+
+    if(images[0] == null && images[1] == null && images[2] == null && images[3] == null) {
+      return null;
+    }
+
     graphics.clearRect(0, 0, 256, 256);
 
     render(0,     0, images[0]); // (0, 0)

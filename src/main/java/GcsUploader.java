@@ -6,21 +6,21 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class GcsUploader implements AutoCloseable {
 
-  private static final int BATCH_SIZE = 50;
   private final String bucketName;
   private final String objectNamePrefix;
-  private final ConcurrentLinkedQueue<MbTiles.Tile> uploadQueue = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<Tile> uploadQueue = new ConcurrentLinkedQueue<>();
+  private final Storage client;
 
   private boolean closed = false;
 
   private List<Thread> uploaderThreads = new ArrayList<>();
+  private final Thread reporterThread;
 
-  public GcsUploader(String bucketName, String tileSetName) {
+  public GcsUploader(Storage client, String bucketName, String tileSetName) {
     this.bucketName = bucketName;
     this.objectNamePrefix = tileSetName + "/";
-  }
+    this.client = client;
 
-  public void start() {
     // Allocate a relatively large number of threads
     // for uploading as we will spend most of the time waiting for network
     // operations to complete.
@@ -32,20 +32,29 @@ public class GcsUploader implements AutoCloseable {
       thread.start();
       uploaderThreads.add(thread);
     }
+
+    reporterThread = new Thread(() -> {
+      while(true) {
+        try {
+          Thread.sleep(10_000);
+        } catch (InterruptedException e) {
+          return;
+        }
+        System.out.println(uploadQueue.size() + " tiles in upload queue");
+      }
+    });
   }
 
-
-  public void upload(MbTiles.Tile tile) {
+  public void upload(Tile tile) {
     uploadQueue.offer(tile);
   }
 
   private void processQueue() {
-    Storage storage = StorageOptions.getDefaultInstance().getService();
 
     StringBuilder name = new StringBuilder(objectNamePrefix);
 
     while(true) {
-      MbTiles.Tile tile = uploadQueue.poll();
+      Tile tile = uploadQueue.poll();
       if(tile == null) {
         // If this uploader has been closed, and there are no more
         // entries in the queue, then we can stop and upload any remainders
@@ -77,8 +86,7 @@ public class GcsUploader implements AutoCloseable {
         .setContentType("image/png")
         .build();
 
-      storage.create(blobInfo, tile.image, 0, tile.image.length);
-
+      client.create(blobInfo, tile.image, 0, tile.image.length);
     }
   }
 
@@ -87,6 +95,7 @@ public class GcsUploader implements AutoCloseable {
    */
   public void close() throws InterruptedException {
     closed = true;
+    reporterThread.interrupt();
     for (Thread thread : uploaderThreads) {
       thread.join();
     }

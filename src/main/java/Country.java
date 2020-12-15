@@ -31,13 +31,18 @@ public class Country {
     return coverage.getEnvelope2D();
   }
 
-  public CountrySubset extractImage(Envelope2D bounds) throws TransformException {
+  public CountrySubset extractImage(Envelope2D bounds) {
 
     if(errorCount >= MAX_ERROR_COUNT) {
       return null;
     }
 
-    GridEnvelope2D gridBounds = coverage.getGridGeometry().worldToGrid(bounds);
+    GridEnvelope2D gridBounds = null;
+    try {
+      gridBounds = coverage.getGridGeometry().worldToGrid(bounds);
+    } catch (TransformException e) {
+      throw new RuntimeException("Failed to transform world bounds in " + file.getName());
+    }
 
     int left = gridBounds.x;
     int top = gridBounds.y;

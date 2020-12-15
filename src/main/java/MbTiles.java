@@ -19,12 +19,6 @@ public class MbTiles implements TileStore {
 
   private boolean closed = false;
 
-  public static class Tile {
-    public int zoom;
-    public int x;
-    public int y;
-    public byte[] image;
-  }
 
   private ConcurrentLinkedQueue<Tile> writeQueue = new ConcurrentLinkedQueue<>();
 
@@ -60,45 +54,7 @@ public class MbTiles implements TileStore {
     setMetadata("minzoom", "0");
     setMetadata("maxzoom", Integer.toString(baseZoomLevel));
 
-    writerThread = new Thread(() -> {
-
-      PreparedStatement stmt = null;
-      try {
-        stmt = connection.prepareStatement("INSERT OR REPLACE INTO tiles (zoom_level,tile_column,tile_row,tile_data) VALUES(?,?,?,?)");
-      } catch (SQLException e) {
-        e.printStackTrace();
-        return;
-      }
-
-      while(true) {
-        Tile tile = writeQueue.poll();
-        if(tile == null) {
-          if(closed) {
-            break;
-          }
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException e) {
-            break;
-          }
-        } else {
-          try {
-            stmt.setInt(1, tile.zoom);
-            stmt.setInt(2, tile.x);
-            stmt.setInt(3, Tms.toTmsY(tile.zoom, tile.y));
-            stmt.setBytes(4, tile.image);
-            stmt.execute();
-          } catch (SQLException e) {
-            e.printStackTrace();
-          }
-        }
-      }
-      try {
-        stmt.close();
-      } catch (SQLException e) {
-        e.printStackTrace();
-      }
-    });
+    writerThread = new Thread(this::processWriteQueue);
     writerThread.start();
   }
 
@@ -141,6 +97,64 @@ public class MbTiles implements TileStore {
     writeQueue.offer(tile);
   }
 
+  @Override
+  public void flush() throws InterruptedException {
+
+  }
+
+  @Override
+  public BufferedImage[] read(int zoom, int startX, int startY, int tileSpan) {
+    BufferedImage images[] = new BufferedImage[tileSpan * tileSpan];
+    int index = 0;
+    ThreadLocalReader reader = getReader();
+    for (int x = 0; x < tileSpan; x++) {
+      for (int y = 0; y < tileSpan; y++) {
+        images[index++] = reader.read(zoom, startX + x, startY + y);
+      }
+    }
+    return images;
+  }
+
+
+  private void processWriteQueue() {
+    PreparedStatement stmt = null;
+    try {
+      stmt = connection.prepareStatement("INSERT OR REPLACE INTO tiles (zoom_level,tile_column,tile_row,tile_data) VALUES(?,?,?,?)");
+    } catch (SQLException e) {
+      e.printStackTrace();
+      return;
+    }
+
+    while (true) {
+      Tile tile = writeQueue.poll();
+      if (tile == null) {
+        if (closed) {
+          break;
+        }
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e) {
+          break;
+        }
+      } else {
+        try {
+          stmt.setInt(1, tile.zoom);
+          stmt.setInt(2, tile.x);
+          stmt.setInt(3, Tms.toTmsY(tile.zoom, tile.y));
+          stmt.setBytes(4, tile.image);
+          stmt.execute();
+        } catch (SQLException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    try {
+      stmt.close();
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+  }
+
   public ThreadLocalReader getReader() {
     ThreadLocalReader reader = this.threadLocalReader.get();
     if(reader == null) {
@@ -160,7 +174,7 @@ public class MbTiles implements TileStore {
     }
   }
 
-  private class ThreadLocalReader implements TileReader {
+  private class ThreadLocalReader {
 
     private final PreparedStatement statement;
 

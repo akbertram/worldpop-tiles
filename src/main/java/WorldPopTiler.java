@@ -7,9 +7,9 @@ public class WorldPopTiler {
     CountrySet countrySet = new CountrySet();
     int baseZoomLevel = 11;
 
-    try(TileStore store = new MbTiles(countrySet, baseZoomLevel)) {
+    try(TileStore store = new GcsStore()) {
       renderBaseTiles(countrySet, store, baseZoomLevel);
-      downsample(store, baseZoomLevel);
+      downsample(countrySet, store, baseZoomLevel);
     }
   }
 
@@ -24,17 +24,24 @@ public class WorldPopTiler {
 
     ColorGradient gradient = new ColorGradient(100);
 
-    ForkJoinPool.commonPool().invoke(new TileRenderTask(tileSet, countrySet, gradient, store, 0, 0,
-      (int) tileSet.tileCount));
+    TileRenderQueue queue = new TileRenderQueue(tileSet, countrySet, gradient, store);
+    queue.render();
 
     Progress.tilesDone();
+
+    System.out.println("Flushing tile writes...");
+    store.flush();
   }
 
-  private static void downsample(TileStore store, int baseZoomLevel) throws Exception {
+  private static void downsample(CountrySet countrySet, TileStore store, int baseZoomLevel) throws Exception {
 
     for (int zoom = baseZoomLevel - 1; zoom >= 0; zoom--) {
+      TileSet tileSet = new TileSet(zoom);
       System.out.println("Downsampling zoom level " + zoom + "...");
-      ForkJoinPool.commonPool().invoke(new DownsampleTask(store, zoom, 0, 0, (int)Math.pow(2, zoom)));
+      ForkJoinPool.commonPool().invoke(new DownsampleTask(countrySet, tileSet, store, zoom, 0, 0, (int)Math.pow(2, zoom)));
+
+      System.out.println("Flushing tile writes...");
+      store.flush();
     }
   }
 

@@ -5,9 +5,8 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ForkJoinTask;
-import java.util.concurrent.RecursiveAction;
 
-public class TileRenderTask extends RecursiveAction {
+public class TileRenderTask implements Runnable {
 
   private final TileSet tileSet;
   private final CountrySet coverage;
@@ -15,47 +14,27 @@ public class TileRenderTask extends RecursiveAction {
   private final TileStore tileStore;
   private final int tileStartX;
   private final int tileStartY;
-  private final int tileSpan;
 
   public TileRenderTask(TileSet tileSet, CountrySet coverage, ColorGradient gradient,
-                        TileStore tileStore, int tileStartX, int tileStartY, int tileSpan) {
+                        TileStore tileStore, int tileStartX, int tileStartY) {
     this.tileSet = tileSet;
     this.coverage = coverage;
     this.gradient = gradient;
     this.tileStore = tileStore;
     this.tileStartX = tileStartX;
     this.tileStartY = tileStartY;
-    this.tileSpan = tileSpan;
   }
 
-  @Override
-  protected void compute() {
-    if(tileSpan <= Reprojection.BATCH_SIZE) {
-      try {
-        renderBatch();
-      } catch (Throwable e) {
-        e.printStackTrace();
-      }
-    } else {
-
-      Envelope2D bounds = tileSet.getGeographicBounds(tileStartX, tileStartY, tileSpan);
-      if(coverage.isEmpty(bounds)) {
-        Progress.progress(0, tileSpan * tileSpan);
-        return;
-      }
-
-      int halfSpan = this.tileSpan / 2;
-      ForkJoinTask.invokeAll(
-        new TileRenderTask(tileSet, coverage, gradient, tileStore, tileStartX, tileStartY, halfSpan),
-        new TileRenderTask(tileSet, coverage, gradient, tileStore, tileStartX + halfSpan, tileStartY, halfSpan),
-        new TileRenderTask(tileSet, coverage, gradient, tileStore, tileStartX, tileStartY + halfSpan, halfSpan),
-        new TileRenderTask(tileSet, coverage, gradient, tileStore, tileStartX + halfSpan, tileStartY + halfSpan, halfSpan));
+  public void run() {
+    try {
+      renderBatch();
+    } catch (IOException e) {
+      e.printStackTrace();
     }
   }
 
-  private void renderBatch() throws TransformException, IOException {
-
-    Envelope2D batchGeographicBounds = tileSet.getGeographicBounds(tileStartX, tileStartY, tileSpan);
+  private void renderBatch() throws IOException {
+    Envelope2D batchGeographicBounds = tileSet.getGeographicBounds(tileStartX, tileStartY, Reprojection.BATCH_SIZE);
 
     Reprojection reprojection = Reprojection.get();
     TileBuffer tileBuffer = TileBuffer.get();
@@ -70,18 +49,19 @@ public class TileRenderTask extends RecursiveAction {
       if(subset != null) {
         reprojection.precomputeGridIndexes(tileSet, tileStartX, tileStartY, subset);
 
-        for (int tileX = 0; tileX < tileSpan; tileX++) {
-          for (int tileY = 0; tileY < tileSpan; tileY++) {
+        for (int tileX = 0; tileX < Reprojection.BATCH_SIZE; tileX++) {
+          for (int tileY = 0; tileY < Reprojection.BATCH_SIZE; tileY++) {
             tileBuffer.renderTile(reprojection, subset, gradient, tileX, tileY);
           }
         }
       }
     }
 
+
     // Now write out any non-empty tiles
 
-    for (int tileX = 0; tileX < tileSpan; tileX++) {
-      for (int tileY = 0; tileY < tileSpan; tileY++) {
+    for (int tileX = 0; tileX < Reprojection.BATCH_SIZE; tileX++) {
+      for (int tileY = 0; tileY < Reprojection.BATCH_SIZE; tileY++) {
         BufferedImage image = tileBuffer.image(tileX, tileY);
         if(image != null) {
           tileStore.write(tileSet.zoomLevel, tileStartX + tileX, tileStartY + tileY, image);
@@ -89,6 +69,6 @@ public class TileRenderTask extends RecursiveAction {
       }
     }
 
-    Progress.progress(tileSpan * tileSpan, 0);
+    Progress.progress(Reprojection.BATCH_SIZE * Reprojection.BATCH_SIZE, 0);
   }
 }

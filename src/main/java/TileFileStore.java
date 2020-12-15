@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-public class TileFileStore implements TileStore, TileReader {
+public class TileFileStore implements TileStore {
 
   private final File baseDir;
   private final Set<String> directoriesCreated = new HashSet<>();
@@ -30,8 +30,37 @@ public class TileFileStore implements TileStore, TileReader {
   }
 
   @Override
-  public TileReader getReader() {
-    return this;
+  public void flush() throws InterruptedException {
+
+  }
+
+  @Override
+  public BufferedImage[] read(int zoom, int startX, int startY, int tileSpan) {
+
+    BufferedImage[] images = new BufferedImage[tileSpan * tileSpan];
+
+    int index = 0;
+    for (int x = 0; x < tileSpan; x++) {
+      for (int y = 0; y < tileSpan; y++) {
+        images[index++] = tryRead(file(zoom, startX + x, startY + y));
+      }
+    }
+    return images;
+  }
+
+  private File file(int zoom, int startX, int startY) {
+    return new File(baseDir, zoom + "/" + startX + "/" + startY + ".png");
+  }
+
+  private BufferedImage tryRead(File file) {
+    if(file.exists()) {
+      try {
+        return ImageIO.read(file);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+    return null;
   }
 
   private void mkdirs(String tileDir) {
@@ -43,18 +72,4 @@ public class TileFileStore implements TileStore, TileReader {
   public void close() {
   }
 
-  @Override
-  public BufferedImage read(int zoom, int x, int y) {
-    File file = new File(baseDir, zoom + "/" + x + "/" + y + ".png");
-    if(file.exists()) {
-      try {
-        return ImageIO.read(file);
-      } catch (IOException e) {
-        e.printStackTrace();
-        return null;
-      }
-    } else {
-      return null;
-    }
-  }
 }

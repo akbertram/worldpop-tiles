@@ -3,6 +3,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.BitSet;
 
+/**
+ * Per-thread buffer for rendering re-sampled base layer tiles.
+ */
 public class TileBuffer  {
 
   public static final ThreadLocal<TileBuffer> THREAD_LOCAL = new ThreadLocal<>();
@@ -36,7 +39,7 @@ public class TileBuffer  {
     }
   }
 
-  public void renderTile(Reprojection reprojection, CountrySubset source, ColorGradient gradient, int tileX, int tileY) throws IOException {
+  public void renderTile(Reprojection reprojection, CountrySubset source, ColorGradient gradient, int tileX, int tileY) {
 
     int pixelIndex = 0;
     boolean empty = true;

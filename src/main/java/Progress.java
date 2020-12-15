@@ -48,21 +48,24 @@ public class Progress {
     long count = COUNT.get();
     double percentComplete = (double) count / (double) totalTiles * 100d;
     double elapsedSeconds = (System.currentTimeMillis() - startTime) / 1000L;
-    double tilesPerSecond = (double) RENDERED_COUNT.get() / elapsedSeconds;
+    long renderedCount = RENDERED_COUNT.get();
+    double tilesPerSecond = (double) renderedCount / elapsedSeconds;
 
     long remainingTiles = totalTiles - count;
     double remainingSeconds = remainingTiles / tilesPerSecond;
     double remainingMinutes = remainingSeconds / 60d;
 
     String remaining;
-    if(remainingMinutes < 90) {
+    if(renderedCount == 0) {
+      remaining = " waiting to start";
+    } else if(remainingMinutes < 90) {
       remaining = Math.round(remainingMinutes) + " minutes remaining";
     } else {
       remaining = Math.round(remainingMinutes / 60d) + " hours remaining";
     }
 
-    System.out.printf("%d tiles rendered (%.2f%%) at %.2f tiles/second, %s%n",
-      count, percentComplete, tilesPerSecond, remaining);
+    System.out.printf("%d tiles remaining (%.2f%%) at %.2f tiles/second, %s%n",
+      remainingTiles, percentComplete, tilesPerSecond, remaining);
   }
 
   public static void tilesDone() {
