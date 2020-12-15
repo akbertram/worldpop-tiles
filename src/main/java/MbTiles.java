@@ -5,12 +5,10 @@ import javax.imageio.ImageIO;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.sql.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Consumer;
 
 public class MbTiles implements TileStore {
 
@@ -21,11 +19,11 @@ public class MbTiles implements TileStore {
 
   private boolean closed = false;
 
-  private static class Tile {
-    private int zoom;
-    private int x;
-    private int y;
-    private byte[] image;
+  public static class Tile {
+    public int zoom;
+    public int x;
+    public int y;
+    public byte[] image;
   }
 
   private ConcurrentLinkedQueue<Tile> writeQueue = new ConcurrentLinkedQueue<>();
@@ -193,6 +191,35 @@ public class MbTiles implements TileStore {
       } catch (SQLException e) {
         e.printStackTrace();
         return null;
+      }
+    }
+  }
+
+  public static void forEachTile(File databaseFile, Consumer<Tile> consumer) throws SQLException, FileNotFoundException {
+    try {
+      Class.forName("org.sqlite.JDBC");
+    } catch (ClassNotFoundException e) {
+      throw new RuntimeException("Sqlite driver unavailable.", e);
+    }
+
+    if(!databaseFile.exists()) {
+      throw new FileNotFoundException(databaseFile.getAbsolutePath());
+    }
+
+    SQLiteConfig config = new SQLiteConfig();
+//    config.setOpenMode(SQLiteOpenMode.READONLY);
+
+    try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + databaseFile.getAbsolutePath(), config.toProperties())) {
+      PreparedStatement statement = connection.prepareStatement("SELECT zoom_level, tile_column, tile_row, tile_data FROM tiles");
+      try (ResultSet rs = statement.executeQuery()) {
+        while(rs.next()) {
+          Tile tile = new Tile();
+          tile.zoom = rs.getInt(1);
+          tile.x = rs.getInt(2);
+          tile.y = rs.getInt(3);
+          tile.image = rs.getBytes(4);
+          consumer.accept(tile);
+        }
       }
     }
   }
