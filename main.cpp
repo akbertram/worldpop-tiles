@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     int zoom = 11;
 
     Tiling tiling(zoom);
-    CountryList countryList(tiling, argv[0]);
+    CountryList countryList(tiling, argv[1]);
     for(Country &country : countryList.countries) {
         country.render();
     }
