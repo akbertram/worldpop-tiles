@@ -11,7 +11,7 @@ find_package(PNG REQUIRED)
 include_directories( include ${GDAL_INCLUDE_DIRS})
 include_directories( ${PNG_INCLUDE_DIR})
 
-add_executable(worldpoptiles main.cpp Country.cpp Country.h Tiling.h Gradient.h)
+add_executable(worldpoptiles main.cpp Country.cpp Country.h Tiling.h Gradient.h DownSampler.cpp DownSampler.h TilePng.cpp TilePng.h)
 
 # Specify GDAL libraries to link your cpp executable target against
 target_link_libraries(worldpoptiles ${GDAL_LIBRARIES})

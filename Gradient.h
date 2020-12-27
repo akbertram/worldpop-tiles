@@ -9,11 +9,11 @@
 
 class Gradient {
 public:
-    static const uint8_t transparent = 0;
+    static const u_int8_t transparent = 0;
 
 
 public:
-    inline static uint8_t PopulationToColorIndex(int pop) {
+    inline static u_int8_t PopulationToColorIndex(int pop) {
         if(pop < 0) {
             return 0;
         }
@@ -42,6 +42,30 @@ public:
             return 8;
         }
         return 9;
+    }
+
+    inline static float ColorIndexToPopulation(int color) {
+        switch (color) {
+            default:
+            case 0:
+                return 0;
+            case 2:
+                return 2;
+            case 3:
+                return 6;
+            case 4:
+                return 10;
+            case 5:
+                return 16;
+            case 6:
+                return 35;
+            case 7:
+                return 75;
+            case 8:
+                return 2000;
+            case 9:
+                return 5000;
+        }
     }
 };
 

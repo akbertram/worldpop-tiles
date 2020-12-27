@@ -16,6 +16,10 @@ public:
     static const int pixelsPerTile = 256;
     static constexpr double originShift = 2 * M_PI * RADIUS / 2.0;
 
+    static int tileCountAtZoomLevel(int zoomLevel) {
+        return (int)pow(2, zoomLevel);
+    }
+
 private:
     int tileCount;
     int zoomLevel;
@@ -26,13 +30,14 @@ private:
 
 public:
     Tiling(int zoomLevel) {
-        this->tileCount = (int)pow(2, zoomLevel);
+        this->tileCount = tileCountAtZoomLevel(zoomLevel);
         this->zoomLevel = zoomLevel;
         this->metersPerTile = PROJ_SIZE / tileCount;
         this->worldSizePixels = (int) (tileCount * pixelsPerTile);
         this->pixelsPerMeter = worldSizePixels / PROJ_SIZE;
         this->metersPerPixel = PROJ_SIZE / worldSizePixels;
     }
+
 
     static double radiansToDegrees(double rad) {
         return rad * 180.0 / M_PI;
