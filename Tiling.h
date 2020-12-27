@@ -1,6 +1,3 @@
-//
-// Created by alex on 26-12-20.
-//
 
 #ifndef WORLDPOPTILES_TILING_H
 #define WORLDPOPTILES_TILING_H

@@ -4,11 +4,12 @@
 #define WORLDPOPTILES_COUNTRY_H
 
 #include <png.h>
+#include <boost/filesystem.hpp>
 #include "gdal_priv.h"
 #include "Tiling.h"
 
 class Country {
-
+    boost::filesystem::path path;
     GDALDataset *poDataset;
     bool ready;
     Tiling tiling;
@@ -39,96 +40,60 @@ class Country {
     std::vector<int> projectionY;
 
 public:
-    Country(Tiling &rTiling, const char *pszFilename) : tiling(rTiling) {
-        poDataset = (GDALDataset *) GDALOpen( pszFilename, GA_ReadOnly );
+    Country(Tiling &rTiling, boost::filesystem::path path) : path(path), tiling(rTiling) {
+        poDataset = (GDALDataset *) GDALOpen( path.c_str(), GA_ReadOnly );
         if(poDataset == nullptr) {
             return;
         }
         double adfGeoTransform[6];
         poDataset->GetGeoTransform(adfGeoTransform);
-        this->longitudePerPixel = adfGeoTransform[1];
-        this->latitudePerPixel = adfGeoTransform[5];
+        longitudePerPixel = adfGeoTransform[1];
+        latitudePerPixel = adfGeoTransform[5];
 
-        this->topNorth = adfGeoTransform[3];
-        this->bottomSouth = topNorth + (poDataset->GetRasterYSize() * this->latitudePerPixel);
+        topNorth = adfGeoTransform[3];
+        bottomSouth = topNorth + (poDataset->GetRasterYSize() * latitudePerPixel);
 
-        this->leftWest = adfGeoTransform[0];
-        this->rightEast = this->leftWest + (poDataset->GetRasterXSize() * this->longitudePerPixel);
+        leftWest = adfGeoTransform[0];
+        rightEast = leftWest + (poDataset->GetRasterXSize() * longitudePerPixel);
 
-        printf("North: %f\nSouth: %f\nWest: %f\nEast: %f\n", this->topNorth, this->bottomSouth, this->leftWest, this->rightEast);
+//        printf("North: %f\nSouth: %f\nWest: %f\nEast: %f\n", topNorth, bottomSouth, leftWest, rightEast);
 
-        this->topTile = tiling.metersToTileY(Tiling::latitudeToMeters(topNorth));
-        this->bottomTile = tiling.metersToTileY(Tiling::latitudeToMeters(bottomSouth));
-        this->leftTile = tiling.metersToTileX(Tiling::longitudeToMeters(leftWest));
-        this->rightTile = tiling.metersToTileX(Tiling::longitudeToMeters(rightEast));
+        topTile = tiling.metersToTileY(Tiling::latitudeToMeters(topNorth));
+        bottomTile = tiling.metersToTileY(Tiling::latitudeToMeters(bottomSouth));
+        leftTile = tiling.metersToTileX(Tiling::longitudeToMeters(leftWest));
+        rightTile = tiling.metersToTileX(Tiling::longitudeToMeters(rightEast));
 
-        printf("(tiles) Top: %d\nBottom: %d\nLeft: %d\nRight: %d\n", this->topTile, this->bottomTile, this->leftTile, this->rightTile);
+//        printf("(tiles) Top: %d\nBottom: %d\nLeft: %d\nRight: %d\n", topTile, bottomTile, leftTile, rightTile);
 
-        this->tileCountX = this->rightTile - this->leftTile + 1;
-        this->tileCountY = this->bottomTile - this->topTile + 1;
+        tileCountX = rightTile - leftTile + 1;
+        tileCountY = bottomTile - topTile + 1;
 
-        printf("Tile count = %d\n", tileCountX * tileCountY);
+//        printf("Tile count = %d\n", tileCountX * tileCountY);
 
-        this->targetWidth = this->tileCountX * this->tiling.GetPixelsPerTile();
-        this->targetHeight = this->tileCountY * this->tiling.GetPixelsPerTile();
+        targetWidth = tileCountX * tiling.GetPixelsPerTile();
+        targetHeight = tileCountY * tiling.GetPixelsPerTile();
 
-        this->pBand = poDataset->GetRasterBand(1);
-        printf("data type = %d\n", pBand->GetRasterDataType());
+        pBand = poDataset->GetRasterBand(1);
+//        printf("data type = %d\n", pBand->GetRasterDataType());
 
-        this->sourceWidth = pBand->GetXSize();
-        this->sourceHeight = pBand->GetYSize();
+        sourceWidth = pBand->GetXSize();
+        sourceHeight = pBand->GetYSize();
     }
 
-    int longitudeToPixel(double longitude) const {
-        return round( (longitude - this->leftWest) / longitudePerPixel );
+    inline int longitudeToPixel(double longitude) const {
+        return round( (longitude - leftWest) / longitudePerPixel );
     }
 
-    int latitudeToPixel(double longitude) const {
-        return round( (this->topNorth - longitude) / longitudePerPixel );
+    inline int latitudeToPixel(double longitude) const {
+        return round( (topNorth - longitude) / longitudePerPixel );
     }
 
 
-    void renderTiles() {
-        readImage();
-        project();
-        for (int tileX = 0; tileX < tileCountX; tileX++) {
-            for (int tileY = 0; tileY < tileCountY; tileY++) {
-                renderTile(tileX, tileY);
-            }
-        }
-    }
+    void render();
 
-    void readImage() {
-        pSourceBuffer = (float *) CPLMalloc(sizeof(float)*(sourceWidth * sourceHeight));
-        pBand->RasterIO(GF_Read,
-                        0, 0, sourceWidth, sourceHeight, /* source rectangle */
-                        pSourceBuffer,
-                        sourceWidth,
-                        sourceHeight,
-                        GDT_Float32,
-                        sizeof(float), /* nPixelSpace */
-                        sizeof(float) * sourceWidth, /* nLineSpace (scanline) */
-                        nullptr);
-    }
+    void readImage();
 
-    void project() {
-        this->projectionX.reserve(targetWidth);
-        this->projectionY.reserve(targetHeight);
-
-        double meterX = tiling.meterTileLeft(leftTile);
-        for (int i = 0; i < targetWidth; i++) {
-            double longitude = Tiling::metersToLongitude(meterX);
-            projectionX.push_back(longitudeToPixel(longitude));
-            meterX += tiling.GetMetersPerPixel();
-        }
-
-        double meterY = tiling.meterTileTop(topTile);
-        for (int i = 0; i < targetHeight; i++) {
-            double latitude = Tiling::metersToLatitude(meterY);
-            projectionY.push_back(latitudeToPixel(latitude));
-            meterY -= tiling.GetMetersPerPixel();
-        }
-    }
+    void project();
 
 
     int GetPopulation(int x, int y) {
@@ -141,6 +106,7 @@ public:
     }
     void renderTile(int tileX, int tileY);
 
+    void renderTiles();
 };
 
 

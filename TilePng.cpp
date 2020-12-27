@@ -38,13 +38,13 @@ void TilePng::writeTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
     filenameIndex = sprintf(filename, "tiles/%d", zoom);
     if(mkdir(filename, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Could not create directory %s: %s\n", filename, strerror(errno));
-        goto finalise;
+        exit(-1);
     }
 
     filenameIndex += sprintf(filename + filenameIndex, "/%d", tileX);
     if(mkdir(filename, 0755) != 0 && errno != EEXIST) {
         fprintf(stderr, "Could not create directory %s: %s\n", filename, strerror(errno));
-        goto finalise;
+        exit(-1);
     }
 
     sprintf(filename + filenameIndex, "/%d.png", tileY);
@@ -52,26 +52,26 @@ void TilePng::writeTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
     fp = fopen(filename, "wb");
     if (fp == nullptr) {
         fprintf(stderr, "Could not open file %s for writing\n", filename);
-        goto finalise;
+        exit(-1);
     }
     // Initialize write structure
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     if (png_ptr == nullptr) {
         fprintf(stderr, "Could not allocate write struct\n");
-        goto finalise;
+        exit(-1);
     }
 
     // Initialize info structure
     info_ptr = png_create_info_struct(png_ptr);
     if (info_ptr == nullptr) {
         fprintf(stderr, "Could not allocate info struct\n");
-        goto finalise;
+        exit(-1);
     }
 
     // Setup Exception handling
     if (setjmp(png_jmpbuf(png_ptr))) {
         fprintf(stderr, "Error during png creation\n");
-        goto finalise;
+        exit(-1);
     }
     png_init_io(png_ptr, fp);
 
@@ -93,16 +93,9 @@ void TilePng::writeTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
     // End write
     png_write_end(png_ptr, nullptr);
 
-    finalise:
-    if (fp != nullptr) {
-        fclose(fp);
-    }
-    if (info_ptr != nullptr) {
-        png_free_data(png_ptr, info_ptr, PNG_FREE_ALL, -1);
-    }
-    if (png_ptr != nullptr) {
-        png_destroy_write_struct(&png_ptr, (png_infopp)nullptr);
-    }
+    fclose(fp);
+    png_free_data(png_ptr, info_ptr, PNG_FREE_ALL, -1);
+    png_destroy_write_struct(&png_ptr, (png_infopp)nullptr);
 }
 
 bool TilePng::tryReadTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
@@ -170,6 +163,7 @@ bool TilePng::tryReadTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
 
     png_read_end(png_ptr, info_ptr);
     png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+    fclose(pFile);
 
     return true;
 }
