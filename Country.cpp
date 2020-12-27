@@ -11,7 +11,7 @@
 
 void Country::renderTile(int tileX, int tileY) {
 
-    unsigned int pixelBuffer[tiling.GetPixelsPerTile() * tiling.GetPixelsPerTile()];
+    uint8_t pixelBuffer[tiling.GetPixelsPerTile() * tiling.GetPixelsPerTile()];
 
     int pixelIndex = 0;
     bool empty = true;
@@ -27,7 +27,7 @@ void Country::renderTile(int tileX, int tileY) {
             int pop = GetPopulation(gridX, gridY);
 
             if (pop >= 0) {
-                pixelBuffer[pixelIndex] = Gradient::color(pop);
+                pixelBuffer[pixelIndex] = Gradient::PopulationToColorIndex(pop);
                 empty = false;
             } else {
                 pixelBuffer[pixelIndex] = Gradient::transparent;
@@ -41,8 +41,23 @@ void Country::renderTile(int tileX, int tileY) {
     }
 }
 
+int paletteSize = 10;
 
-void Country::writePNG(unsigned int *pPixels, int tileX, int tileY) {
+png_color palette[] = {
+        {255, 255, 255},
+        {255, 255, 240},
+        {255, 255, 204},
+        {254, 237, 160},
+        {254, 217, 118},
+        {254, 178, 76},
+        {253, 141, 60},
+        {252, 78, 42},
+        {227, 26, 28},
+        {177, 0, 38} };
+
+png_byte paletteTransparency[] = {0, 255, 255, 255, 255, 255, 255, 255, 255, 255 };
+
+void Country::writePNG(uint8_t *pPixels, int tileX, int tileY) {
     FILE *fp = nullptr;
     png_structp png_ptr = nullptr;
     png_infop info_ptr = nullptr;
@@ -91,19 +106,18 @@ void Country::writePNG(unsigned int *pPixels, int tileX, int tileY) {
     }
     png_init_io(png_ptr, fp);
 
-    // Write header (8 bit colour depth)
+    // Write header (8 bit indexed image)
     png_set_IHDR(png_ptr, info_ptr, Tiling::pixelsPerTile, Tiling::pixelsPerTile,
-                 8, PNG_COLOR_TYPE_RGB_ALPHA, PNG_INTERLACE_NONE,
+                 8, PNG_COLOR_TYPE_PALETTE, PNG_INTERLACE_NONE,
                  PNG_COMPRESSION_TYPE_BASE, PNG_FILTER_TYPE_BASE);
+
+    png_set_PLTE(png_ptr, info_ptr, palette, paletteSize);
+    png_set_tRNS(png_ptr, info_ptr, paletteTransparency, 2, NULL);
 
     png_write_info(png_ptr, info_ptr);
 
-    // Allocate memory for one row (3 bytes per pixel - RGB)
-    row = (png_bytep) malloc(3 * Tiling::pixelsPerTile * sizeof(png_byte));
-
     // Write image data
-    int x, y;
-    for (y=0 ; y<Tiling::pixelsPerTile ; y++) {
+    for (int y=0 ; y<Tiling::pixelsPerTile ; y++) {
         png_write_row(png_ptr, reinterpret_cast<png_bytep>(pPixels + (y * Tiling::pixelsPerTile)));
     }
 

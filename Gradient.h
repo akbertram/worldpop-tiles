@@ -5,45 +5,43 @@
 #ifndef WORLDPOPTILES_GRADIENT_H
 #define WORLDPOPTILES_GRADIENT_H
 
-
+#include <png.h>
 
 class Gradient {
 public:
-    static const unsigned int transparent = 0xffffff;
+    static const uint8_t transparent = 0;
 
-    constexpr inline static unsigned int rgb(int r, int g, int b) {
-        return r | (g << 8) | (b << 16) | 0xff000000;
-    }
 
-    inline static unsigned int color(float pop) {
+public:
+    inline static uint8_t PopulationToColorIndex(int pop) {
         if(pop < 0) {
-            return transparent;
+            return 0;
         }
         if(pop < 1) {
-            return rgb(255, 255, 240);
+            return 1;
         }
         if(pop < 4) {
-            return rgb(255, 255, 204);
+            return 2;
         }
         if(pop < 8) {
-            return rgb(254, 237, 160);
+            return 3;
         }
         if(pop < 12) {
-            return rgb(254, 217, 118);
+            return 4;
         }
         if(pop < 20) {
-            return rgb(254, 178, 76);
+            return 5;
         }
         if(pop < 50) {
-            return rgb(253, 141, 60);
+            return 6;
         }
         if(pop < 100) {
-            return rgb(252, 78, 42);
+            return 7;
         }
         if(pop < 3000) {
-            return rgb(227, 26, 28);
+            return 8;
         }
-        return rgb(177, 0, 38);
+        return 9;
     }
 };
 

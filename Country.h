@@ -140,7 +140,7 @@ public:
         }
     }
     void renderTile(int tileX, int tileY);
-    void writePNG(unsigned int * pPixels, int tileX, int tileY);
+    void writePNG(uint8_t * pPixels, int tileX, int tileY);
 
 };
 
