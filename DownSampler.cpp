@@ -11,7 +11,7 @@
 DownSampler::DownSampler(int zoom, int tileX, int tileY) : zoom(zoom), tileX(tileX), tileY(tileY) {
 }
 
-void DownSampler::downSample() {
+void DownSampler::DownSample() {
 
     int nPixels = Tiling::pixelsPerTile * Tiling::pixelsPerTile;
     u_int8_t input[nPixels];
@@ -22,19 +22,19 @@ void DownSampler::downSample() {
 
     for(int sx = 0; sx < 2; sx++) {
         for(int sy = 0; sy < 2; sy++) {
-            if(TilePng::tryReadTile(zoom + 1, tileX * 2 + sx, tileY * 2 + sy, input)) {
+            if(TilePng::TryReadTile(zoom + 1, tileX * 2 + sx, tileY * 2 + sy, input)) {
                 empty = false;
-                downSampleQuad(input, output, sx * Tiling::pixelsPerTile / 2, sy * Tiling::pixelsPerTile / 2);
+                DownSampleQuad(input, output, sx * Tiling::pixelsPerTile / 2, sy * Tiling::pixelsPerTile / 2);
             }
         }
     }
     if(!empty) {
-        TilePng::writeTile(zoom, tileX, tileY, output);
+        TilePng::WriteTile(zoom, tileX, tileY, output);
     }
 }
 
 
-void DownSampler::downSampleQuad(const u_int8_t *input, u_int8_t *output, int offsetX, int offsetY) {
+void DownSampler::DownSampleQuad(const u_int8_t *input, u_int8_t *output, int offsetX, int offsetY) {
 
     for(int y=0; y < Tiling::pixelsPerTile / 2; y++) {
         for(int x=0;x < Tiling::pixelsPerTile / 2; x++) {

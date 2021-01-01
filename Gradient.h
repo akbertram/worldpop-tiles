@@ -1,6 +1,3 @@
-//
-// Created by alex on 27-12-20.
-//
 
 #ifndef WORLDPOPTILES_GRADIENT_H
 #define WORLDPOPTILES_GRADIENT_H

@@ -10,8 +10,6 @@
 
 class Country {
     boost::filesystem::path path;
-    GDALDataset *poDataset;
-    bool ready;
     Tiling tiling;
     double longitudePerPixel;
     double latitudePerPixel;
@@ -20,93 +18,80 @@ class Country {
     double leftWest;
     double rightEast;
 
-    int topTile;
-    int bottomTile;
-    int leftTile;
-    int rightTile;
-    int tileCountX;
-    int tileCountY;
+    TileRect tileRect;
 
-    int sourceWidth;
-    int sourceHeight;
-
-    int targetWidth;
-    int targetHeight;
-
-    GDALRasterBand *pBand;
-    float *pSourceBuffer;
-
-    std::vector<int> projectionX;
-    std::vector<int> projectionY;
+    int width;
+    int height;
 
 public:
     Country(Tiling &rTiling, boost::filesystem::path path) : path(path), tiling(rTiling) {
-        poDataset = (GDALDataset *) GDALOpen( path.c_str(), GA_ReadOnly );
+        GDALDataset *poDataset = (GDALDataset *) GDALOpen(path.c_str(), GA_ReadOnly);
         if(poDataset == nullptr) {
             return;
         }
+        width = poDataset->GetRasterXSize();
+        height = poDataset->GetRasterYSize();
+
         double adfGeoTransform[6];
         poDataset->GetGeoTransform(adfGeoTransform);
         longitudePerPixel = adfGeoTransform[1];
         latitudePerPixel = adfGeoTransform[5];
 
         topNorth = adfGeoTransform[3];
-        bottomSouth = topNorth + (poDataset->GetRasterYSize() * latitudePerPixel);
-
+        bottomSouth = topNorth + (height * latitudePerPixel);
         leftWest = adfGeoTransform[0];
-        rightEast = leftWest + (poDataset->GetRasterXSize() * longitudePerPixel);
+        rightEast = leftWest + (width * longitudePerPixel);
 
-//        printf("North: %f\nSouth: %f\nWest: %f\nEast: %f\n", topNorth, bottomSouth, leftWest, rightEast);
+        tileRect = tiling.GeographicRectToTileRect(topNorth, bottomSouth, leftWest, rightEast);
 
-        topTile = tiling.metersToTileY(Tiling::latitudeToMeters(topNorth));
-        bottomTile = tiling.metersToTileY(Tiling::latitudeToMeters(bottomSouth));
-        leftTile = tiling.metersToTileX(Tiling::longitudeToMeters(leftWest));
-        rightTile = tiling.metersToTileX(Tiling::longitudeToMeters(rightEast));
-
-//        printf("(tiles) Top: %d\nBottom: %d\nLeft: %d\nRight: %d\n", topTile, bottomTile, leftTile, rightTile);
-
-        tileCountX = rightTile - leftTile + 1;
-        tileCountY = bottomTile - topTile + 1;
-
-//        printf("Tile count = %d\n", tileCountX * tileCountY);
-
-        targetWidth = tileCountX * tiling.GetPixelsPerTile();
-        targetHeight = tileCountY * tiling.GetPixelsPerTile();
-
-        pBand = poDataset->GetRasterBand(1);
-//        printf("data type = %d\n", pBand->GetRasterDataType());
-
-        sourceWidth = pBand->GetXSize();
-        sourceHeight = pBand->GetYSize();
+        delete poDataset;
     }
 
-    inline int longitudeToPixel(double longitude) const {
-        return round( (longitude - leftWest) / longitudePerPixel );
+    inline double longitudeToPixel(double longitude) const {
+        return (longitude - leftWest) / longitudePerPixel;
     }
 
-    inline int latitudeToPixel(double longitude) const {
-        return round( (topNorth - longitude) / longitudePerPixel );
+    inline double latitudeToPixel(double longitude) const {
+        return (topNorth - longitude) / longitudePerPixel;
     }
 
+    inline Tiling GetTiling() const {
+        return tiling;
+    }
 
-    void render();
+    inline int GetWidth() const {
+        return width;
+    }
 
-    void readImage();
+    inline int GetHeight() const {
+        return height;
+    }
 
-    void project();
+    const boost::filesystem::path &GetPath() const {
+        return path;
+    }
 
+    std::vector<TileRect> DivideIntoBatches() {
 
-    int GetPopulation(int x, int y) {
-        if(x < 0 || y < 0 || x >= sourceWidth || y >= sourceHeight) {
-            return -1;
-        } else {
-            float pop = pSourceBuffer[(y * sourceWidth) + x];
-            return (int)pop;
+        // We are assuming that the input tiffs have blocks of 1 pixel high. For this reason,
+        // it makes sense to divide them into batches of horizontal bands, depending on the width
+        // of the image
+
+        int batchSize = 16384 / tileRect.GetTileCountX();
+        if(batchSize < 1) {
+            batchSize = 1;
         }
-    }
-    void renderTile(int tileX, int tileY);
 
-    void renderTiles();
+        std::vector<TileRect> rects;
+        for(int top=tileRect.GetTopTile();top < tileRect.GetBottomTile(); top+= batchSize) {
+            int tileCountY = batchSize;
+            if(top + tileCountY - 1 > tileRect.GetBottomTile()) {
+                tileCountY = tileRect.GetBottomTile() - top + 1;
+            }
+            rects.push_back(TileRect(tileRect.GetLeftTile(), top, tileRect.GetTileCountX(), tileCountY));
+        }
+        return rects;
+    }
 };
 
 

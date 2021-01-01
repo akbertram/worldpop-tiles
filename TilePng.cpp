@@ -26,7 +26,7 @@ png_color palette[] = {
 
 png_byte paletteTransparency[] = {0, 255, 255, 255, 255, 255, 255, 255, 255, 255 };
 
-void TilePng::writeTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
+void TilePng::WriteTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
     FILE *fp = nullptr;
     png_structp png_ptr = nullptr;
     png_infop info_ptr = nullptr;
@@ -98,7 +98,7 @@ void TilePng::writeTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
     png_destroy_write_struct(&png_ptr, (png_infopp)nullptr);
 }
 
-bool TilePng::tryReadTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
+bool TilePng::TryReadTile(int zoom, int tileX, int tileY, u_int8_t *pPixels) {
 
     char filename[1024];
     sprintf(filename, "tiles/%d/%d/%d.png", zoom, tileX, tileY);

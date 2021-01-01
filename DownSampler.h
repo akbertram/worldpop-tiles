@@ -12,10 +12,10 @@ class DownSampler {
 
 public:
     DownSampler(int zoom, int tileX, int tileY);
-    void downSample();
+    void DownSample();
 
 private:
-    void downSampleQuad(const u_int8_t* input, u_int8_t* output, int offsetX, int offsetY);
+    void DownSampleQuad(const u_int8_t* input, u_int8_t* output, int offsetX, int offsetY);
 };
 
 
