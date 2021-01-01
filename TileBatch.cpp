@@ -11,8 +11,7 @@ using namespace std;
 atomic_long tileCount(0);
 boost::timer::cpu_timer totalTimer;
 
-void TileBatch::Render() {
-    cerr << " Starting batch (" << tileRect.GetLeftTile() << ", " << tileRect.GetTopTile() << ")" << endl;
+void TileBatch::Run() {
     ReadImage();
     Project();
     RenderTiles();

@@ -7,6 +7,7 @@
 #include "Country.h"
 #include "TileBatch.h"
 #include "DownSampler.h"
+#include "WorkerPool.h"
 
 using namespace boost::filesystem;
 using namespace std;
@@ -23,27 +24,30 @@ int main(int argc, char *argv[]) {
     int zoom = 11;
     Tiling tiling(zoom);
 
+
     for (directory_entry& entry : directory_iterator(path(argv[1]))) {
-        cout << "Starting " << entry.path() << '\n';
+        cerr << "Starting " << entry.path() << endl;
+        WorkerPool<TileBatch> workerPool;
         Country country(tiling, entry.path());
         for (TileRect &rect : country.DivideIntoBatches()) {
             TileBatch batch(country, rect);
-            batch.Render();
+            workerPool.Add(batch);
         }
+        workerPool.Run();
     }
-
-    TileBatch::PrintStatistics();
 
     zoom--;
     while(zoom >= 1) {
         cerr << "Down sampling zoom level "  << zoom << endl;
+        WorkerPool<DownSampler> workerPool;
         int tileCount = Tiling::TileCountAtZoomLevel(zoom);
         for (int tileX = 0; tileX < tileCount; tileX++) {
             for (int tileY = 0; tileY < tileCount; tileY++) {
-                DownSampler downSampler(zoom, tileX, tileY);
-                downSampler.DownSample();
+                DownSampler task = DownSampler(zoom, tileX, tileY);
+                workerPool.Add(task);
             }
         }
+        workerPool.Run();
         zoom--;
     }
 

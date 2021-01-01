@@ -11,7 +11,7 @@
 DownSampler::DownSampler(int zoom, int tileX, int tileY) : zoom(zoom), tileX(tileX), tileY(tileY) {
 }
 
-void DownSampler::DownSample() {
+void DownSampler::Run() {
 
     int nPixels = Tiling::pixelsPerTile * Tiling::pixelsPerTile;
     u_int8_t input[nPixels];

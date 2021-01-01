@@ -24,8 +24,7 @@ public:
     inline int GetBottomTile() const { return topTile + tileCountY - 1; }
     inline int GetLeftTile() const { return leftTile; }
     inline int GetRightTile() const { return leftTile + tileCountX - 1; };
-
-
+    
     inline int GetTileCountX() const { return tileCountX; }
     inline int GetTileCountY() const { return tileCountY; }
     inline int GetTileCount() const { return tileCountX * tileCountY; }

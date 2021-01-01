@@ -8,8 +8,9 @@
 #include "Tiling.h"
 #include "Country.h"
 #include "GeoRect.h"
+#include "Task.h"
 
-class TileBatch {
+class TileBatch : public Task {
 
     Country country;
     Tiling tiling;
@@ -65,7 +66,7 @@ public:
         targetHeight = tileRect.GetTileCountY() * Tiling::pixelsPerTile;
     }
 
-    void Render();
+    void Run();
 
     static void PrintStatistics();
 
