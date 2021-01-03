@@ -13,6 +13,7 @@ public interface TileStore extends AutoCloseable {
    */
   void flush() throws InterruptedException;
 
+
   /**
    * Gets a reader that can be used from the current thread.
    */

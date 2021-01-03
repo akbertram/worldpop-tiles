@@ -21,7 +21,11 @@ public class CompositeBuffer {
     image = new BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB);
     graphics = image.createGraphics();
     graphics.setBackground(ColorGradient.TRANSPARENT_COLOR);
-    graphics.clearRect(0, 0, 256, 256);
+    clear();
+  }
+
+  public BufferedImage getImage() {
+    return image;
   }
 
   public BufferedImage render(BufferedImage[] images) {
@@ -30,7 +34,7 @@ public class CompositeBuffer {
       return null;
     }
 
-    graphics.clearRect(0, 0, 256, 256);
+    clear();
 
     render(0,     0, images[0]); // (0, 0)
     render(0,   128, images[1]); // (0, 1)
@@ -38,6 +42,10 @@ public class CompositeBuffer {
     render(128, 128, images[3]); // (1, 1)
 
     return image;
+  }
+
+  public void clear() {
+    graphics.clearRect(0, 0, 256, 256);
   }
 
   private void render(int x, int y, BufferedImage image) {

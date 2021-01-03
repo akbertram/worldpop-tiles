@@ -4,17 +4,15 @@ import java.util.concurrent.RecursiveAction;
 
 public class DownsampleTask extends RecursiveAction {
 
-  private final CountrySet countrySet;
-  private final TileSet tileSet;
+  private final Tiling tiling;
   private final TileStore tileStore;
   private final int zoomLevel;
   private final int tileStartX;
   private final int tileStartY;
   private final int tileSpan;
 
-  public DownsampleTask(CountrySet countrySet, TileSet tileSet, TileStore tileStore, int zoomLevel, int tileStartX, int tileStartY, int tileSpan) {
-    this.countrySet = countrySet;
-    this.tileSet = tileSet;
+  public DownsampleTask(Tiling tiling, TileStore tileStore, int zoomLevel, int tileStartX, int tileStartY, int tileSpan) {
+    this.tiling = tiling;
     this.tileStore = tileStore;
     this.zoomLevel = zoomLevel;
     this.tileStartX = tileStartX;
@@ -25,20 +23,15 @@ public class DownsampleTask extends RecursiveAction {
   @Override
   protected void compute() {
 
-    // Check to see if this region is empty
-    if(countrySet.isEmpty(tileSet.getGeographicBounds(tileStartX, tileStartY, tileSpan))) {
-      return;
-    }
-
     if(tileSpan == 1) {
       downSample();
     } else {
       int halfSpan = this.tileSpan / 2;
       ForkJoinTask.invokeAll(
-        new DownsampleTask(countrySet, tileSet, tileStore, zoomLevel, tileStartX, tileStartY, halfSpan),
-        new DownsampleTask(countrySet, tileSet, tileStore, zoomLevel, tileStartX + halfSpan, tileStartY, halfSpan),
-        new DownsampleTask(countrySet, tileSet, tileStore, zoomLevel, tileStartX, tileStartY + halfSpan, halfSpan),
-        new DownsampleTask(countrySet, tileSet, tileStore, zoomLevel, tileStartX + halfSpan, tileStartY + halfSpan, halfSpan));
+        new DownsampleTask(tiling, tileStore, zoomLevel, tileStartX, tileStartY, halfSpan),
+        new DownsampleTask(tiling, tileStore, zoomLevel, tileStartX + halfSpan, tileStartY, halfSpan),
+        new DownsampleTask(tiling, tileStore, zoomLevel, tileStartX, tileStartY + halfSpan, halfSpan),
+        new DownsampleTask(tiling, tileStore, zoomLevel, tileStartX + halfSpan, tileStartY + halfSpan, halfSpan));
     }
   }
 

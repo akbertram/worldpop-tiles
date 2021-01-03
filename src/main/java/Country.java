@@ -1,105 +1,90 @@
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.GridEnvelope2D;
-import org.geotools.geometry.Envelope2D;
-import org.opengis.referencing.operation.TransformException;
+import org.gdal.gdal.Dataset;
+import org.gdal.gdal.gdal;
 
-import java.awt.*;
-import java.awt.image.Raster;
-import java.awt.image.RenderedImage;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Country {
 
-  private static final ThreadLocal<int[]> THREAD_LOCAL_BUFFER = new ThreadLocal<>();
-  public static final int MAX_ERROR_COUNT = 3;
-
   private final File file;
-  private final GridCoverage2D coverage;
-  private final RenderedImage image;
-  private final GridEnvelope2D gridRange;
+  private final Tiling tiling;
+  private final double longitudePerPixel;
+  private final double latitudePerPixel;
+  private final double topNorth;
+  private final double bottomSouth;
+  private final double leftWest;
+  private final double rightEast;
 
-  private int errorCount = 0;
+  private final TileRect tileRect;
 
-  public Country(File file, GridCoverage2D coverage) {
+  private final int width;
+  private final int height;
+
+  public Country(Tiling tiling, File file) {
     this.file = file;
-    this.coverage = coverage;
-    this.image = coverage.getRenderableImage(0, 1).createDefaultRendering();
-    this.gridRange = coverage.getGridGeometry().getGridRange2D();
+    this.tiling = tiling;
+    Dataset dataset = gdal.Open(file.getAbsolutePath());
+    width = dataset.GetRasterXSize();
+    height = dataset.GetRasterYSize();
+
+    double adfGeoTransform[] = dataset.GetGeoTransform();
+    longitudePerPixel = adfGeoTransform[1];
+    latitudePerPixel = adfGeoTransform[5];
+
+    topNorth = adfGeoTransform[3];
+    bottomSouth = topNorth + (height * latitudePerPixel);
+    leftWest = adfGeoTransform[0];
+    rightEast = leftWest + (width * longitudePerPixel);
+
+    tileRect = tiling.GeographicRectToTileRect(topNorth, bottomSouth, leftWest, rightEast);
+
+    dataset.delete();
   }
 
-  public Envelope2D getGeographicBounds() {
-    return coverage.getEnvelope2D();
+  public Tiling getTiling() {
+    return tiling;
   }
 
-  public CountrySubset extractImage(Envelope2D bounds) {
+  public File getFile() {
+    return file;
+  }
 
-    if(errorCount >= MAX_ERROR_COUNT) {
-      return null;
+  public double longitudeToPixel(double longitude) {
+    return (longitude - leftWest) / longitudePerPixel;
+  }
+
+  public double latitudeToPixel(double longitude) {
+    return (topNorth - longitude) / longitudePerPixel;
+  }
+
+  java.util.List<TileRect> divideIntoBatches() {
+
+    // We are assuming that the input tiffs have blocks of 1 pixel high. For this reason,
+    // it makes sense to divide them into batches of horizontal bands, depending on the width
+    // of the image
+
+    int batchSize = 16384 / tileRect.getTileCountX();
+    if(batchSize < 1) {
+      batchSize = 1;
     }
 
-    GridEnvelope2D gridBounds = null;
-    try {
-      gridBounds = coverage.getGridGeometry().worldToGrid(bounds);
-    } catch (TransformException e) {
-      throw new RuntimeException("Failed to transform world bounds in " + file.getName());
-    }
-
-    int left = gridBounds.x;
-    int top = gridBounds.y;
-    int width = gridBounds.width;
-    int height = gridBounds.height;
-
-    int offsetX = 0;
-    int offsetY = 0;
-
-    if(left < 0) {
-      offsetX = -left;
-      left = 0;
-      width -= offsetX;
-    }
-
-    if(top < 0) {
-      offsetY = -top;
-      top = 0;
-      height -= offsetY;
-    }
-
-    if(left + width > gridRange.getSpan(0)) {
-      width = gridRange.getSpan(0) - left;
-    }
-
-    if(top + height > gridRange.getSpan(1)) {
-      height = gridRange.getSpan(1) - top;
-    }
-
-    if(width < 0 || height < 0) {
-      return null;
-    }
-
-    // Iterate over the tiles that overlap with this range
-    Raster raster;
-    try {
-      raster = image.getData(new Rectangle(left, top, width, height));
-    } catch (Exception e) {
-      System.out.println("Exception reading from " + file.getName());
-      e.printStackTrace();
-      errorCount++;
-      if(errorCount >= MAX_ERROR_COUNT) {
-        System.out.println("Too many errors reading from " + file.getName() + ", will not attempt further.");
+    List<TileRect> rects = new ArrayList<>();
+    for(int top=tileRect.getTopTile();top < tileRect.getBottomTile(); top+= batchSize) {
+      int tileCountY = batchSize;
+      if(top + tileCountY - 1 > tileRect.getBottomTile()) {
+        tileCountY = tileRect.getBottomTile() - top + 1;
       }
-      return null;
+      rects.add(new TileRect(tileRect.getLeftTile(), top, tileRect.getTileCountX(), tileCountY));
     }
-
-    // Try to reuse the buffer if big enough
-    int[] buffer = THREAD_LOCAL_BUFFER.get();
-    if(buffer == null || buffer.length < (width * height)) {
-      buffer = new int[width * height];
-      THREAD_LOCAL_BUFFER.set(buffer);
-    }
-
-    int[] pixels = raster.getPixels(left, top, width, height, buffer);
-
-    return new CountrySubset(coverage, left, top, width, height, pixels);
+    return rects;
   }
 
+  public int getWidth() {
+    return width;
+  }
+
+  public int getHeight() {
+    return height;
+  }
 }

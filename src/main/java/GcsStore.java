@@ -2,7 +2,6 @@ import com.google.cloud.storage.*;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
-import java.util.BitSet;
 
 public class GcsStore implements TileStore {
 
