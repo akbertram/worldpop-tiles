@@ -155,4 +155,12 @@ public class TileImage implements RenderedImage {
   public void clear() {
     Arrays.fill(array, (byte)0);
   }
+
+  public void set(BufferedImage image) {
+    int[] existingBuffer = new int[Tiling.PIXELS_PER_TILE * Tiling.PIXELS_PER_TILE];
+    image.getData().getPixels(0, 0, Tiling.PIXELS_PER_TILE, Tiling.PIXELS_PER_TILE, existingBuffer);
+    for (int i = 0; i < existingBuffer.length; i++) {
+      array[i] = (byte)existingBuffer[i];
+    }
+  }
 }

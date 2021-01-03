@@ -4,22 +4,17 @@ plugins {
 }
 
 repositories {
-    maven {
-        url "https://repo.osgeo.org/repository/release/"
-    }
     jcenter()
 }
-ext {
-    geotoolsVersion = '24.1'
-}
+
 
 dependencies {
     compile 'com.google.cloud:google-cloud-storage:1.113.6'
     compile 'org.gdal:gdal:2.2.0'
+    compile 'com.google.guava:guava:30.0-jre'
 
     testCompile 'org.junit.jupiter:junit-jupiter:5.6.2'
     testCompile 'org.hamcrest:hamcrest-library:1.3'
-    testCompile 'com.google.guava:guava:30.0-jre'
 }
 
 task renderTiles(type:JavaExec) {

@@ -1,66 +1,136 @@
+import com.google.common.collect.Sets;
+import com.google.common.io.Files;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class TileFileStore implements TileStore {
 
   private final File baseDir;
-  private final Set<String> directoriesCreated = new HashSet<>();
+  private final GcsUploader uploader;
 
-  public TileFileStore(File baseDir) {
+  private ConcurrentLinkedQueue<Integer> directoryQueue = new ConcurrentLinkedQueue<>();
+  private Thread directoryReaderThread;
+  private boolean done;
+
+  public TileFileStore(File baseDir, GcsUploader uploader) {
     this.baseDir = baseDir;
+    this.uploader = uploader;
+    this.directoryReaderThread = new Thread(this::uploadZoomLevels);
+    this.directoryReaderThread.setName("WriteBuffer reader");
+    this.directoryReaderThread.start();
   }
 
   @Override
-  public void write(int zoom, int x, int y, RenderedImage image) {
-    String tileDir = baseDir.getPath() + "/" + zoom + "/" + x;
-    if(directoriesCreated.add(tileDir)) {
-      mkdirs(tileDir);
-    }
-    File imageFile = new File(tileDir, y + ".png");
-    try {
-      ImageIO.write(image, "png", imageFile);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+  public WriteBuffer newWriteBuffer(int zoomLevel) {
+
+    return new WriteBuffer() {
+      private final Set<String> directoriesCreated = Sets.newConcurrentHashSet();
+
+      @Override
+      public void write(int x, int y, RenderedImage image) {
+        String tileDir = baseDir.getPath() + "/" + zoomLevel + "/" + x;
+        if(!directoriesCreated.contains(tileDir)) {
+          mkdirs(tileDir);
+          directoriesCreated.add(tileDir);
+        }
+        File imageFile = new File(tileDir, y + ".png");
+        try {
+          ImageIO.write(image, "png", imageFile);
+        } catch (IOException e) {
+          System.err.println("Failed to write " + imageFile.getAbsolutePath());
+          e.printStackTrace();
+        }
+      }
+
+      @Override
+      public BufferedImage read(int x, int y) {
+        File inFile = file(zoomLevel, x, y);
+        if(!inFile.exists()) {
+          return null;
+        }
+        try {
+          return ImageIO.read(inFile);
+        } catch (IOException e) {
+          System.err.println("Error reading " + inFile);
+          e.printStackTrace();
+          return null;
+        }
+      }
+
+      @Override
+      public int getZoomLevel() {
+        return zoomLevel;
+      }
+
+      @Override
+      public void doneWriting() {
+        directoryQueue.offer(zoomLevel);
+      }
+
+      @Override
+      public void doneReading() {
+      }
+    };
   }
 
-  @Override
-  public void flush() throws InterruptedException {
 
-  }
-
-  @Override
-  public BufferedImage[] read(int zoom, int startX, int startY, int tileSpan) {
-
-    BufferedImage[] images = new BufferedImage[tileSpan * tileSpan];
-
-    int index = 0;
-    for (int x = 0; x < tileSpan; x++) {
-      for (int y = 0; y < tileSpan; y++) {
-        images[index++] = tryRead(file(zoom, startX + x, startY + y));
+  private void uploadZoomLevels() {
+    while(true) {
+      Integer zoomLevel = directoryQueue.poll();
+      if(zoomLevel == null) {
+        if(done) {
+          return;
+        } else {
+          try {
+            Thread.sleep(1000);
+          } catch (InterruptedException e) {
+            return;
+          }
+        }
+      } else {
+        uploadZoomLevel(zoomLevel);
       }
     }
-    return images;
   }
+
+  private void uploadZoomLevel(int zoomLevel) {
+    File zoomDir = new File(baseDir, Integer.toString(zoomLevel));
+
+    File[] dirs = zoomDir.listFiles();
+    if(dirs == null) {
+      return;
+    }
+    for (File dir : dirs) {
+      if(dir.isDirectory()) {
+        int x = Integer.parseInt(dir.getName());
+
+        File[] tiles = dir.listFiles();
+        if(tiles != null) {
+          for (File tileFile : tiles) {
+            String tileName = tileFile.getName();
+            String tileNameWithoutExtension = tileName.substring(0, tileName.length() - ".png".length());
+            int y = Integer.parseInt(tileNameWithoutExtension);
+            try {
+              Tile tile = new Tile(zoomLevel, x, y, Files.toByteArray(tileFile));
+              uploader.upload(tile);
+            } catch (IOException e) {
+              e.printStackTrace();
+            }
+          }
+        }
+      }
+    }
+  }
+
 
   private File file(int zoom, int startX, int startY) {
     return new File(baseDir, zoom + "/" + startX + "/" + startY + ".png");
-  }
-
-  private BufferedImage tryRead(File file) {
-    if(file.exists()) {
-      try {
-        return ImageIO.read(file);
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    }
-    return null;
   }
 
   private void mkdirs(String tileDir) {
@@ -69,7 +139,10 @@ public class TileFileStore implements TileStore {
   }
 
   @Override
-  public void close() {
+  public void close() throws InterruptedException {
+    done = true;
+    directoryReaderThread.join();
+    uploader.close();
   }
 
 }

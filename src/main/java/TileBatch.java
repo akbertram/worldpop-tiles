@@ -3,17 +3,19 @@ import org.gdal.gdal.Dataset;
 import org.gdal.gdal.gdal;
 import org.gdal.gdalconst.gdalconstConstants;
 
+import java.awt.image.BufferedImage;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class TileBatch {
+public class TileBatch implements Callable<Void> {
 
   private static final AtomicLong tileCount = new AtomicLong(0);
   private static final long startTime = System.currentTimeMillis();
 
   private final Country country;
   private final Tiling tiling;
-  private final TileStore tileStore;
   private final TileRect tileRect;
+  private final WriteBuffer writeBuffer;
 
   private int sourceLeft;
   private int sourceTop;
@@ -27,9 +29,9 @@ public class TileBatch {
   private int[] projectionY;
   private short[] sourceArray;
 
-  public TileBatch(Country country, TileStore tileStore, TileRect rect) {
+  public TileBatch(Country country, WriteBuffer writeBuffer, TileRect rect) {
     this.country = country;
-    this.tileStore = tileStore;
+    this.writeBuffer = writeBuffer;
     this.tileRect = rect;
     this.tiling = country.getTiling();
 
@@ -136,7 +138,6 @@ public class TileBatch {
         renderTile(tileX, tileY);
       }
     }
-
   }
 
   private void renderTile(int tileX, int tileY) {
@@ -144,12 +145,13 @@ public class TileBatch {
     boolean empty = true;
 
     TileImage tileBuffer = TileImage.getBuffer();
-    tileBuffer.clear();
 
-//
-//    if(!tileStore.tryRead(tiling.zoomLevel, tileRect.getLeftTile() + tileX, tileRect.getTopTile() + tileY, pixelBuffer)) {
-//      Arrays.fill(pixelBuffer, ColorGradient.TRANSPARENT);
-//    }
+    BufferedImage existing = writeBuffer.read(tileRect.getLeftTile() + tileX, tileRect.getTopTile() + tileY);
+    if(existing == null) {
+      tileBuffer.clear();
+    } else {
+      tileBuffer.set(existing);
+    }
 
     int startX = tileX * Tiling.PIXELS_PER_TILE;
     int startY = tileY * Tiling.PIXELS_PER_TILE;
@@ -171,8 +173,13 @@ public class TileBatch {
     }
 
     if(!empty) {
-      tileStore.write(tiling.zoomLevel, tileRect.getLeftTile() + tileX, tileRect.getTopTile() + tileY, tileBuffer);
+      writeBuffer.write(tileRect.getLeftTile() + tileX, tileRect.getTopTile() + tileY, tileBuffer);
     }
   }
 
+  @Override
+  public Void call() throws Exception {
+    render();
+    return null;
+  }
 }

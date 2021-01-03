@@ -1,5 +1,7 @@
 import com.google.cloud.storage.*;
+import com.google.common.base.Strings;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -25,31 +27,51 @@ public class GcsUploader implements AutoCloseable {
     // for uploading as we will spend most of the time waiting for network
     // operations to complete.
 
-    int nThreads = Runtime.getRuntime().availableProcessors() * 3;
+    int nThreads = 10;
     for (int i = 0; i < nThreads; i++) {
-      Thread thread = new Thread(this::processQueue);
+      Thread thread = new Thread(this::processUploadQueue);
       thread.setName("GCS Uploader " + i);
       thread.start();
       uploaderThreads.add(thread);
     }
 
     reporterThread = new Thread(() -> {
+      boolean started = false;
       while(true) {
         try {
           Thread.sleep(10_000);
         } catch (InterruptedException e) {
           return;
         }
-        System.out.println(uploadQueue.size() + " tiles in upload queue");
+        if(started || uploadQueue.size() > 0) {
+          System.err.println(uploadQueue.size() + " tiles in upload queue");
+          started = true;
+        }
       }
     });
+    reporterThread.setName("GCS Uploader Reporter");
+    reporterThread.start();
+  }
+
+  public static GcsUploader fromEnvironment() {
+    Storage service = StorageOptions.getDefaultInstance().getService();
+    String bucket = System.getenv("GCS_TILE_BUCKET");
+    if(Strings.isNullOrEmpty(bucket)) {
+      bucket = "worldpop-test-1";
+    }
+    String tileset = System.getenv("GCS_TILE_PREFIX");
+    if(Strings.isNullOrEmpty(tileset)) {
+      tileset = "dev";
+    }
+    return new GcsUploader(service, bucket, tileset);
   }
 
   public void upload(Tile tile) {
     uploadQueue.offer(tile);
   }
 
-  private void processQueue() {
+
+  private void processUploadQueue() {
 
     StringBuilder name = new StringBuilder(objectNamePrefix);
 
@@ -95,10 +117,12 @@ public class GcsUploader implements AutoCloseable {
    */
   public void close() throws InterruptedException {
     closed = true;
-    reporterThread.interrupt();
     for (Thread thread : uploaderThreads) {
       thread.join();
     }
+    reporterThread.interrupt();
+    reporterThread.join();
+    System.err.println("Upload queue finished.");
   }
 
 }
