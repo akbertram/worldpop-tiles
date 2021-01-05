@@ -108,7 +108,7 @@ public class GcsUploader implements AutoCloseable {
       byte buffer[] = new byte[1024 * 32];
 
       name.setLength(objectNamePrefix.length());
-      name.append(dir.getParent());
+      name.append(dir.getParentFile().getName());
       name.append('/');
       name.append(dir.getName());
       name.append('/');
@@ -123,6 +123,11 @@ public class GcsUploader implements AutoCloseable {
           name.append(file.getName());
 
           int fileLength = (int)file.length();
+
+          // We don't expect tiles larger than 32k, but just in case...
+          if(fileLength > buffer.length) {
+            buffer = new byte[fileLength];
+          }
 
           readFile(buffer, file, fileLength);
 
