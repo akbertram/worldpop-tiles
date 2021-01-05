@@ -30,14 +30,14 @@ public class Country {
 
     double adfGeoTransform[] = dataset.GetGeoTransform();
     longitudePerPixel = adfGeoTransform[1];
-    latitudePerPixel = adfGeoTransform[5];
+    latitudePerPixel = -adfGeoTransform[5];
 
     topNorth = adfGeoTransform[3];
-    bottomSouth = topNorth + (height * latitudePerPixel);
+    bottomSouth = topNorth - (height * latitudePerPixel);
     leftWest = adfGeoTransform[0];
     rightEast = leftWest + (width * longitudePerPixel);
 
-    tileRect = tiling.GeographicRectToTileRect(topNorth, bottomSouth, leftWest, rightEast);
+    tileRect = tiling.geographicRectToTileRect(topNorth, bottomSouth, leftWest, rightEast);
 
     dataset.delete();
   }
@@ -55,7 +55,15 @@ public class Country {
   }
 
   public double latitudeToPixel(double longitude) {
-    return (topNorth - longitude) / longitudePerPixel;
+    return (topNorth - longitude) / latitudePerPixel;
+  }
+
+  public double pixelToLongitude(double x) {
+    return leftWest + (x * longitudePerPixel);
+  }
+
+  public double pixelToLatitude(double y) {
+    return topNorth + (y * latitudePerPixel);
   }
 
   java.util.List<TileRect> divideIntoBatches() {
@@ -64,7 +72,7 @@ public class Country {
     // it makes sense to divide them into batches of horizontal bands, depending on the width
     // of the image
 
-    int batchSize = 16384 / tileRect.getTileCountX();
+    int batchSize = 16384 / 2 / tileRect.getTileCountX();
     if(batchSize < 1) {
       batchSize = 1;
     }
@@ -86,5 +94,14 @@ public class Country {
 
   public int getHeight() {
     return height;
+  }
+
+  public double approximatePixelAreaMetersAt(double longitude, double latitude) {
+    double x1 = Tiling.longitudeToMeters(longitude);
+    double x2 = Tiling.longitudeToMeters(longitude + longitudePerPixel);
+    double y1 = Tiling.latitudeToMeters(latitude);
+    double y2 = Tiling.latitudeToMeters(latitude + latitudePerPixel);
+
+    return (x2 - x1) * (y2 - y1);
   }
 }

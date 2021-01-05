@@ -5,6 +5,10 @@ import java.awt.image.*;
 import java.util.Arrays;
 import java.util.Vector;
 
+/**
+ * A simplified implementation of RenderedImage that allows directly
+ * manipulating the array of color indexes.
+ */
 public class TileImage implements RenderedImage {
 
   private static final ThreadLocal<TileImage> THREAD_LOCAL = new ThreadLocal<>();

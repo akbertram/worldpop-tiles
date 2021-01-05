@@ -2,6 +2,8 @@ import com.google.cloud.storage.*;
 import com.google.common.base.Strings;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -10,7 +12,7 @@ public class GcsUploader implements AutoCloseable {
 
   private final String bucketName;
   private final String objectNamePrefix;
-  private final ConcurrentLinkedQueue<Tile> uploadQueue = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<File> uploadQueue = new ConcurrentLinkedQueue<>();
   private final Storage client;
 
   private boolean closed = false;
@@ -28,6 +30,10 @@ public class GcsUploader implements AutoCloseable {
     // operations to complete.
 
     int nThreads = 10;
+    if (!Strings.isNullOrEmpty(System.getenv("GCS_THREADS"))) {
+      nThreads = Integer.parseInt(System.getenv("GCS_THREADS"));
+    }
+
     for (int i = 0; i < nThreads; i++) {
       Thread thread = new Thread(this::processUploadQueue);
       thread.setName("GCS Uploader " + i);
@@ -39,7 +45,7 @@ public class GcsUploader implements AutoCloseable {
       boolean started = false;
       while(true) {
         try {
-          Thread.sleep(10_000);
+          Thread.sleep(30_000);
         } catch (InterruptedException e) {
           return;
         }
@@ -61,23 +67,26 @@ public class GcsUploader implements AutoCloseable {
     }
     String tileset = System.getenv("GCS_TILE_PREFIX");
     if(Strings.isNullOrEmpty(tileset)) {
-      tileset = "dev";
+      tileset = "dev6";
     }
     return new GcsUploader(service, bucket, tileset);
   }
 
-  public void upload(Tile tile) {
-    uploadQueue.offer(tile);
+  public void uploadZoomDirectory(File zoomDir) {
+    for (File subDir : zoomDir.listFiles()) {
+      if(subDir.isDirectory()) {
+        uploadQueue.offer(subDir);
+      }
+    }
   }
-
 
   private void processUploadQueue() {
 
     StringBuilder name = new StringBuilder(objectNamePrefix);
 
     while(true) {
-      Tile tile = uploadQueue.poll();
-      if(tile == null) {
+      File dir = uploadQueue.poll();
+      if(dir == null) {
         // If this uploader has been closed, and there are no more
         // entries in the queue, then we can stop and upload any remainders
         if(closed) {
@@ -96,19 +105,45 @@ public class GcsUploader implements AutoCloseable {
         continue;
       }
 
+      byte buffer[] = new byte[1024 * 32];
+
       name.setLength(objectNamePrefix.length());
-      name.append(tile.zoom);
+      name.append(dir.getParent());
       name.append('/');
-      name.append(tile.x);
+      name.append(dir.getName());
       name.append('/');
-      name.append(tile.y);
-      name.append(".png");
 
-      BlobInfo blobInfo = Blob.newBuilder(BlobId.of(bucketName, name.toString()))
-        .setContentType("image/png")
-        .build();
+      int prefixLength = name.length();
 
-      client.create(blobInfo, tile.image, 0, tile.image.length);
+      File[] files = dir.listFiles();
+      if(files != null) {
+        for (File file : files) {
+
+          name.setLength(prefixLength);
+          name.append(file.getName());
+
+          int fileLength = (int)file.length();
+
+          readFile(buffer, file, fileLength);
+
+          BlobInfo blobInfo = Blob.newBuilder(BlobId.of(bucketName, name.toString()))
+            .setContentType("image/png")
+            .build();
+
+          client.create(blobInfo, buffer, 0, fileLength);
+        }
+      }
+    }
+  }
+
+  private void readFile(byte[] buffer, File file, int fileLength) {
+    try(FileInputStream in = new FileInputStream(file)) {
+      int bytesRead = 0;
+      while(bytesRead < fileLength) {
+        bytesRead += in.read(buffer, bytesRead, fileLength - bytesRead);
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
     }
   }
 

@@ -1,7 +1,4 @@
-import com.google.cloud.storage.BlobId;
-
 import java.awt.image.BufferedImage;
-import java.nio.Buffer;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
 
@@ -9,17 +6,15 @@ public class DownsampleTask extends RecursiveAction {
 
   private final Tiling tiling;
   private final int zoomLevel;
-  private final WriteBuffer up;
-  private final WriteBuffer down;
+  private final TileStore store;
   private final int tileStartX;
   private final int tileStartY;
   private final int tileSpan;
 
-  public DownsampleTask(Tiling tiling, WriteBuffer up, WriteBuffer down, int tileStartX, int tileStartY, int tileSpan) {
+  public DownsampleTask(Tiling tiling, TileStore store, int tileStartX, int tileStartY, int tileSpan) {
     this.tiling = tiling;
     this.zoomLevel = tiling.zoomLevel;
-    this.up = up;
-    this.down = down;
+    this.store = store;
     this.tileStartX = tileStartX;
     this.tileStartY = tileStartY;
     this.tileSpan = tileSpan;
@@ -33,10 +28,10 @@ public class DownsampleTask extends RecursiveAction {
     } else {
       int halfSpan = this.tileSpan / 2;
       ForkJoinTask.invokeAll(
-        new DownsampleTask(tiling, up, down, tileStartX, tileStartY, halfSpan),
-        new DownsampleTask(tiling, up, down, tileStartX + halfSpan, tileStartY, halfSpan),
-        new DownsampleTask(tiling, up, down, tileStartX, tileStartY + halfSpan, halfSpan),
-        new DownsampleTask(tiling, up, down, tileStartX + halfSpan, tileStartY + halfSpan, halfSpan));
+        new DownsampleTask(tiling, store, tileStartX, tileStartY, halfSpan),
+        new DownsampleTask(tiling, store, tileStartX + halfSpan, tileStartY, halfSpan),
+        new DownsampleTask(tiling, store, tileStartX, tileStartY + halfSpan, halfSpan),
+        new DownsampleTask(tiling, store, tileStartX + halfSpan, tileStartY + halfSpan, halfSpan));
     }
   }
 
@@ -48,7 +43,7 @@ public class DownsampleTask extends RecursiveAction {
     int index = 0;
     for (int x = 0; x < 2; x++) {
       for (int y = 0; y < 2; y++) {
-        images[index] = up.read(sx + x, sy + y);
+        images[index] = store.read(zoomLevel + 1, sx + x, sy + y);
         index++;
       }
     }
@@ -56,7 +51,7 @@ public class DownsampleTask extends RecursiveAction {
     CompositeBuffer buffer = CompositeBuffer.get();
     BufferedImage downsampledImage = buffer.render(images);
     if(downsampledImage != null) {
-      down.write(tileStartX, tileStartY, downsampledImage);
+      store.write(zoomLevel, tileStartX, tileStartY, downsampledImage);
     }
   }
 }

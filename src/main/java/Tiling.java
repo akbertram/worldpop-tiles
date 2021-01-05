@@ -77,7 +77,7 @@ public class Tiling {
     return meterTileTop(tileY) - metersPerTile;
   }
 
-  TileRect GeographicRectToTileRect(double topNorth, double bottomSouth, double leftWest, double rightEast) {
+  TileRect geographicRectToTileRect(double topNorth, double bottomSouth, double leftWest, double rightEast) {
 
     int topTile = metersToTileY(latitudeToMeters(topNorth));
     int bottomTile = metersToTileY(latitudeToMeters(bottomSouth));
@@ -87,7 +87,7 @@ public class Tiling {
     return new TileRect(leftTile, topTile, rightTile - leftTile + 1, bottomTile - topTile + 1);
   }
 
-  GeoRect TileRectToGeoRect(TileRect rect) {
+  GeoRect tileRectToGeoRect(TileRect rect) {
     double longitudeWestLeft = metersToLongitude(meterTileLeft(rect.getLeftTile()));
     double latitudeNorth = metersToLatitude(meterTileTop(rect.getTopTile()));
     double longitudeEastRight = metersToLongitude(meterTileRight(rect.getRightTile()));
@@ -103,4 +103,5 @@ public class Tiling {
   public int metersToTileY(double metersY) {
     return (int)Math.floor( (PROJ_MAX - metersY) / metersPerTile);
   }
+
 }

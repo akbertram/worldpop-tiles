@@ -24,10 +24,6 @@ public class CompositeBuffer {
     clear();
   }
 
-  public BufferedImage getImage() {
-    return image;
-  }
-
   public BufferedImage render(BufferedImage[] images) {
 
     if(images[0] == null && images[1] == null && images[2] == null && images[3] == null) {

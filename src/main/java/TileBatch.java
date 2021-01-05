@@ -14,8 +14,8 @@ public class TileBatch implements Callable<Void> {
 
   private final Country country;
   private final Tiling tiling;
+  private final TileStore tileStore;
   private final TileRect tileRect;
-  private final WriteBuffer writeBuffer;
 
   private int sourceLeft;
   private int sourceTop;
@@ -28,15 +28,16 @@ public class TileBatch implements Callable<Void> {
   private int[] projectionX;
   private int[] projectionY;
   private short[] sourceArray;
+  private final double kmSquaredPerPixel;
 
-  public TileBatch(Country country, WriteBuffer writeBuffer, TileRect rect) {
+  public TileBatch(Country country, TileStore tileStore, TileRect rect) {
     this.country = country;
-    this.writeBuffer = writeBuffer;
+    this.tileStore = tileStore;
     this.tileRect = rect;
     this.tiling = country.getTiling();
 
     // Find the geographic bounds of this tile range (in degrees)
-    GeoRect geoRect = tiling.TileRectToGeoRect(rect);
+    GeoRect geoRect = tiling.tileRectToGeoRect(rect);
 
     // Now map these geographic bounds to a rectangle within the original country image (in pixels)
     sourceLeft = (int) Math.floor(country.longitudeToPixel(geoRect.getLeft()));
@@ -64,24 +65,31 @@ public class TileBatch implements Callable<Void> {
     sourceHeight = sourceBottom - sourceTop;
     targetWidth = tileRect.getTileCountX() * Tiling.PIXELS_PER_TILE;
     targetHeight = tileRect.getTileCountY() * Tiling.PIXELS_PER_TILE;
+
+    // Find the approximate m2 of a single pixel within this batch
+    kmSquaredPerPixel = country.approximatePixelAreaMetersAt(geoRect.getCenterX(), geoRect.getCenterY()) / 1e6;
   }
 
-  void render() {
+  public void render() {
     readImage();
     project();
     renderTiles();
     sourceArray = null;
     tileCount.addAndGet(tileRect.getTileCount());
-    PrintStatistics();
+    printStatistics();
   }
 
-  static void PrintStatistics() {
+  public boolean overlaps(TileBatch batch) {
+    return tileRect.overlaps(batch.tileRect);
+  }
+
+  private void printStatistics() {
     double elapsedMillis = System.currentTimeMillis() - startTime;
     double elpasedSeconds = elapsedMillis / 1000d;
     double tilesRendered = tileCount.get();
     double tilesPerSecond = tilesRendered / elpasedSeconds;
 
-    System.err.println(String.format("Rendering rate: %.3f tiles/second", tilesPerSecond));
+    System.err.println(String.format("Finished " + toString() + ", overall rate: %.0f tiles/sec", tilesPerSecond));
   }
 
   private double longitudeToPixel(double longitude) {
@@ -146,7 +154,11 @@ public class TileBatch implements Callable<Void> {
 
     TileImage tileBuffer = TileImage.getBuffer();
 
-    BufferedImage existing = writeBuffer.read(tileRect.getLeftTile() + tileX, tileRect.getTopTile() + tileY);
+    BufferedImage existing = tileStore.read(
+      tiling.zoomLevel,
+      tileRect.getLeftTile() + tileX,
+      tileRect.getTopTile() + tileY);
+
     if(existing == null) {
       tileBuffer.clear();
     } else {
@@ -165,7 +177,8 @@ public class TileBatch implements Callable<Void> {
         short pop = getPopulation(gridX, gridY);
 
         if (pop >= 0) {
-          tileBuffer.setColorIndex(pixelIndex, ColorGradient.populationToColorIndex(pop));
+          double density = pop / kmSquaredPerPixel;
+          tileBuffer.setColorIndex(pixelIndex, ColorGradient.populationToColorIndex((int)Math.round(density)));
           empty = false;
         }
         pixelIndex ++;
@@ -173,13 +186,21 @@ public class TileBatch implements Callable<Void> {
     }
 
     if(!empty) {
-      writeBuffer.write(tileRect.getLeftTile() + tileX, tileRect.getTopTile() + tileY, tileBuffer);
+      tileStore.write(
+        tiling.zoomLevel,
+        tileRect.getLeftTile() + tileX,
+        tileRect.getTopTile() + tileY, tileBuffer);
     }
   }
 
   @Override
-  public Void call() throws Exception {
+  public Void call() {
     render();
     return null;
+  }
+
+  @Override
+  public String toString() {
+    return "TileBatch{" + country.getFile().getName().substring(0, 3) + "+" + tileRect.getTopTile() + "}";
   }
 }

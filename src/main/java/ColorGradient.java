@@ -17,35 +17,48 @@ public class ColorGradient {
     new Color(177, 0, 38)
   };
 
-  public static int populationToColorIndex(short pop) {
-    if(pop < 0) {
+  public static int populationToColorIndex(int popDensity) {
+
+    // This scale is based on natural logarithmic scale, where
+    // each breakpoint k is ~ equal to e^((k-1)/2)*100
+
+    if(popDensity < 0) {
       return 0;
     }
-    if(pop < 1) {
+    if(popDensity < 100) {
       return 1;
     }
-    if(pop < 4) {
+    if(popDensity < 165) {
       return 2;
     }
-    if(pop < 8) {
+    if(popDensity < 270) {
       return 3;
     }
-    if(pop < 12) {
+    if(popDensity < 450) {
       return 4;
     }
-    if(pop < 20) {
+    if(popDensity < 740) {
       return 5;
     }
-    if(pop < 50) {
+    if(popDensity < 1200) {
       return 6;
     }
-    if(pop < 100) {
+    if(popDensity < 2000) {
       return 7;
     }
-    if(pop < 3000) {
+    if(popDensity < 3300) {
       return 8;
     }
     return 9;
   }
 
+  public static void main(String[] args) {
+    for (int i = 1; i < COLORS.length; i++) {
+      System.out.println(String.format("<rect x=\"0\" y=\"%d\" width=\"10\" height=\"10\" fill=\"#%02X%02X%02X\"/>",
+        90 - (i * 10),
+        COLORS[i].getRed(),
+        COLORS[i].getGreen(),
+        COLORS[i].getBlue()));
+    }
+  }
 }

@@ -20,4 +20,12 @@ class GeoRect {
   public double getRight() { return east; }
   public double getTop() { return north; }
   public double getBottom() { return south; }
+
+  public double getCenterX() {
+    return (east + west) / 2d;
+  }
+
+  public double getCenterY() {
+    return (north + south) / 2d;
+  }
 }
