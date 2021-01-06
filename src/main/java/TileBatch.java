@@ -45,6 +45,13 @@ public class TileBatch implements Callable<Void> {
     int sourceRight = (int) Math.ceil(country.longitudeToPixel(geoRect.getRight()));
     int sourceBottom = (int) Math.ceil(country.latitudeToPixel(geoRect.getBottom()));
 
+    // Add an extra pixel to avoid artifacts at tile borders arising from
+    // rounding errors
+    sourceLeft -= 1;
+    sourceTop -= 1;
+    sourceRight += 1;
+    sourceBottom += 1;
+
     // The source rectangle might lay outside the bounds of the image
     // So adjust...
 
