@@ -6,7 +6,7 @@ import java.util.concurrent.ForkJoinPool;
 
 public class WorldPopTiler {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws InterruptedException {
 
     gdal.AllRegister();
 
@@ -20,6 +20,8 @@ public class WorldPopTiler {
     renderBaseLayer(sourceDir, tiling, tileStore, uploader);
 
     downsample(tileStore, uploader, baseZoomLevel);
+
+    uploader.close();
   }
 
   static File findSourceDir() {
