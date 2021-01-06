@@ -12,7 +12,7 @@ public class WorldPopTiler {
 
     File sourceDir = findSourceDir();
 
-    int baseZoomLevel = 11;
+    int baseZoomLevel = 10;
     Tiling tiling = new Tiling(baseZoomLevel);
     GcsUploader uploader = GcsUploader.fromEnvironment();
     TileStore tileStore = new TileStore(new File("tiles"));

@@ -27,7 +27,7 @@ public class TileBatch implements Callable<Void> {
 
   private int[] projectionX;
   private int[] projectionY;
-  private short[] sourceArray;
+  private float[] sourceArray;
   private final double kmSquaredPerPixel;
 
   public TileBatch(Country country, TileStore tileStore, TileRect rect) {
@@ -107,7 +107,7 @@ public class TileBatch implements Callable<Void> {
     return country.latitudeToPixel(latitude) - sourceTop;
   }
 
-  private short getPopulation(int x, int y) {
+  private float getPopulation(int x, int y) {
     if(x < 0 || y < 0 || x >= sourceWidth || y >= sourceHeight) {
       return -1;
     } else {
@@ -140,9 +140,9 @@ public class TileBatch implements Callable<Void> {
     Dataset dataset = gdal.Open(country.getFile().getAbsolutePath());
     Band band = dataset.GetRasterBand(1);
 
-    sourceArray = new short[sourceWidth * sourceHeight];
+    sourceArray = new float[sourceWidth * sourceHeight];
     band.ReadRaster(sourceLeft, sourceTop, sourceWidth, sourceHeight,
-      gdalconstConstants.GDT_Int16, sourceArray);
+      gdalconstConstants.GDT_Float32, sourceArray);
 
     dataset.delete();
   }
@@ -181,7 +181,7 @@ public class TileBatch implements Callable<Void> {
 
       for (int x = 0; x < Tiling.PIXELS_PER_TILE; x++) {
         int gridX = projectionX[startX + x];
-        short pop = getPopulation(gridX, gridY);
+        float pop = getPopulation(gridX, gridY);
 
         if (pop >= 0) {
           double density = pop / kmSquaredPerPixel;

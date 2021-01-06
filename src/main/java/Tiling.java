@@ -7,7 +7,7 @@ public class Tiling {
 
   public static final double PROJ_SIZE = PROJ_MAX - PROJ_MIN;
 
-  public static final int PIXELS_PER_TILE = 256;
+  public static final int PIXELS_PER_TILE = 512;
 
   public static final double originShift = 2 * Math.PI * RADIUS / 2.0;
 
