@@ -55,9 +55,15 @@ public class TileRenderQueue {
       }
 
       System.err.println("Starting " + batch);
-      batch.render();
+      try {
+        batch.render();
+        done(batch);
 
-      done(batch);
+      } catch (OutOfMemoryError e) {
+        System.err.println("Failed   " + batch);
+        e.printStackTrace(System.err);
+        reschedule(batch);
+      }
     }
   }
 
@@ -65,7 +71,7 @@ public class TileRenderQueue {
 
     synchronized (this) {
       while (true) {
-        if (queue.isEmpty()) {
+        if (queue.isEmpty() && rendering.isEmpty()) {
           notifyAll();
           return null;
         }
@@ -91,6 +97,14 @@ public class TileRenderQueue {
   private void done(TileBatch batch) {
     synchronized (this) {
       rendering.remove(batch);
+      notify();
+    }
+  }
+
+  private void reschedule(TileBatch batch) {
+    synchronized (this) {
+      rendering.remove(batch);
+      queue.add(batch);
       notify();
     }
   }
