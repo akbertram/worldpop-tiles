@@ -72,7 +72,7 @@ public class Country {
     // it makes sense to divide them into batches of horizontal bands, depending on the width
     // of the image
 
-    int batchSize = 16384 / 8 / tileRect.getTileCountX();
+    int batchSize = 1024 / tileRect.getTileCountX();
     if(batchSize < 1) {
       batchSize = 1;
     }
