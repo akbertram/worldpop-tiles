@@ -46,7 +46,7 @@ public class WorldPopTiler {
     TileRenderQueue renderQueue = new TileRenderQueue();
 
     for (File file : sourceDir.listFiles()) {
-      if (file.getName().endsWith(".tif")) {
+      if (file.getName().endsWith(".tif") && !file.getName().startsWith("ata")) {
 
         Country country = new Country(tiling, file);
 

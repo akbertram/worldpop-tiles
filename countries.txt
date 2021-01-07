@@ -9,7 +9,6 @@ are
 arg
 arm
 asm
-ata
 atf
 atg
 aus
