@@ -33,7 +33,7 @@ public class ColorGradient {
     new Color(255,   0,   0),     // 22k-28k
     new Color(255,  98,   0),     // 28k-40k
     new Color(255, 159,   0),     // 40k-80k
-    new Color(255, 159,   0)      // 80k+
+    new Color(254, 194,   0)      // 80k+
   };
 
   public static int populationToColorIndex(int popDensity) {
