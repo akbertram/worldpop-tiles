@@ -2,11 +2,12 @@ import com.google.common.base.Strings;
 import org.gdal.gdal.gdal;
 
 import java.io.File;
+import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 
 public class WorldPopTiler {
 
-  public static void main(String[] args) throws InterruptedException {
+  public static void main(String[] args) {
 
     gdal.AllRegister();
 
@@ -14,14 +15,14 @@ public class WorldPopTiler {
 
     int baseZoomLevel = 10;
     Tiling tiling = new Tiling(baseZoomLevel);
-    GcsUploader uploader = GcsUploader.fromEnvironment();
+    Optional<GcsUploader> uploader = GcsUploader.fromEnvironment();
     TileStore tileStore = new TileStore(new File("tiles"));
 
     renderBaseLayer(sourceDir, tiling, tileStore, uploader);
 
     downsample(tileStore, uploader, baseZoomLevel);
 
-    uploader.close();
+    uploader.ifPresent(up -> up.close());
   }
 
   static File findSourceDir() {
@@ -41,7 +42,7 @@ public class WorldPopTiler {
     return sourceDir;
   }
 
-  private static void renderBaseLayer(File sourceDir, Tiling tiling, TileStore tileStore, GcsUploader uploader) {
+  private static void renderBaseLayer(File sourceDir, Tiling tiling, TileStore tileStore, Optional<GcsUploader> uploader) {
 
     TileRenderQueue renderQueue = new TileRenderQueue();
 
@@ -56,15 +57,17 @@ public class WorldPopTiler {
       }
     }
     renderQueue.run();
-    uploader.uploadZoomDirectory(tileStore.getZoomDirectory(tiling.zoomLevel));
+    uploader.ifPresent(up -> up.uploadZoomDirectory(tileStore.getZoomDirectory(tiling.zoomLevel)));
   }
 
-  private static void downsample(TileStore store, GcsUploader uploader, int baseZoomLevel) {
+  private static void downsample(TileStore store, Optional<GcsUploader> uploader, int baseZoomLevel) {
     for (int zoom = baseZoomLevel - 1; zoom >= 0; zoom--) {
       Tiling tiling = new Tiling(zoom);
       System.out.println("Downsampling zoom level " + zoom + "...");
       ForkJoinPool.commonPool().invoke(new DownsampleTask(tiling, store, 0, 0, Tiling.tileCount(zoom)));
-      uploader.uploadZoomDirectory(store.getZoomDirectory(zoom));
+
+      File zoomDirectory = store.getZoomDirectory(zoom);
+      uploader.ifPresent(up -> up.uploadZoomDirectory(zoomDirectory));
     }
   }
 }

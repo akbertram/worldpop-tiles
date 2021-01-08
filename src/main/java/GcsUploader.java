@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class GcsUploader implements AutoCloseable {
@@ -59,17 +60,19 @@ public class GcsUploader implements AutoCloseable {
     reporterThread.start();
   }
 
-  public static GcsUploader fromEnvironment() {
+  public static Optional<GcsUploader> fromEnvironment() {
     Storage service = StorageOptions.getDefaultInstance().getService();
     String bucket = System.getenv("GCS_TILE_BUCKET");
     if(Strings.isNullOrEmpty(bucket)) {
-      bucket = "worldpop-test-1";
+      System.err.println("Missing environment variable GCS_TILE_BUCKET, will not upload");
+      return Optional.empty();
     }
     String tileset = System.getenv("GCS_TILE_PREFIX");
     if(Strings.isNullOrEmpty(tileset)) {
-      tileset = "dev6";
+      System.err.println("Missing environment variable GCS_TILE_PREFIX, will not upload");
+      return Optional.empty();
     }
-    return new GcsUploader(service, bucket, tileset);
+    return Optional.of(new GcsUploader(service, bucket, tileset));
   }
 
   public void uploadZoomDirectory(File zoomDir) {
@@ -155,14 +158,18 @@ public class GcsUploader implements AutoCloseable {
   /**
    * Closes the uploader and waits for all uploading threads to finish.
    */
-  public void close() throws InterruptedException {
+  public void close() {
     closed = true;
-    for (Thread thread : uploaderThreads) {
-      thread.join();
+    try {
+      for (Thread thread : uploaderThreads) {
+        thread.join();
+      }
+      reporterThread.interrupt();
+      reporterThread.join();
+      System.err.println("Upload queue finished.");
+    } catch (InterruptedException e) {
+      System.err.println("Uploader interrupted, stopping.");
     }
-    reporterThread.interrupt();
-    reporterThread.join();
-    System.err.println("Upload queue finished.");
   }
 
 }
